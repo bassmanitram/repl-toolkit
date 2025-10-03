@@ -7,7 +7,7 @@ chatbots, and interactive shells with clean abstractions and full type safety.
 
 from .async_repl import AsyncREPL, run_async_repl
 from .headless import run_headless_mode
-from .types import AsyncBackend, HeadlessBackend, CommandHandler, Completer
+from .ptypes import AsyncBackend, HeadlessBackend, CommandHandler, Completer
 
 __version__ = "0.1.0"
 __all__ = [

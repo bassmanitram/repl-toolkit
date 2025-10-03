@@ -20,7 +20,7 @@ from prompt_toolkit.completion import Completer
 from prompt_toolkit.keys import Keys
 from prompt_toolkit.history import FileHistory
 
-from .types import AsyncBackend, CommandHandler, Completer
+from .ptypes import AsyncBackend, CommandHandler, Completer
 from .commands.registry import CommandRegistry
 
 THINKING = HTML("<i><grey>Thinking... (Press Alt+C to cancel)</grey></i>")

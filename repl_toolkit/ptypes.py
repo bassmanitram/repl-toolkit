@@ -5,8 +5,7 @@ This module defines the core interfaces that backends must implement
 to work with the REPL toolkit components.
 """
 
-from typing import Protocol, Optional, List, runtime_checkable
-from pathlib import Path
+from typing import Protocol, List, runtime_checkable
 
 
 @runtime_checkable

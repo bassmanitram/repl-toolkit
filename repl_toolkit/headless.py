@@ -10,7 +10,7 @@ from typing import Optional
 
 from loguru import logger
 
-from .types import HeadlessBackend
+from .ptypes import HeadlessBackend
 
 
 async def run_headless_mode(

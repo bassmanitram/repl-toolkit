@@ -8,7 +8,7 @@ for extensible command systems.
 from typing import Any, Dict, List, Optional
 from loguru import logger
 
-from ..types import CommandHandler
+from ..ptypes import CommandHandler
 from .base import BaseCommand, CommandError
 from .help_command import HelpCommand
 

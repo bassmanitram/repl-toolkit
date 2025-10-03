@@ -3,7 +3,7 @@ Tests for repl_toolkit type protocols.
 """
 
 import pytest
-from repl_toolkit.types import AsyncBackend, HeadlessBackend, CommandHandler
+from repl_toolkit.ptypes import AsyncBackend, HeadlessBackend, CommandHandler
 
 
 class TestAsyncBackend:
