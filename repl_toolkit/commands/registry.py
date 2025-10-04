@@ -161,7 +161,7 @@ class CommandRegistry(CommandHandler):
         # Check cache first
         handler_key = handler_class.__name__
         if handler_key in self.command_cache:
-            return self.command_cache[handler_key, ]
+            return self.command_cache[handler_key]
 
         # Instantiate handler
         handler_instance = self._instantiate_handler(command, handler_class)
