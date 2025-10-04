@@ -29,6 +29,22 @@ class CommandRegistry(CommandHandler):
         # Register basic commands
         self._register_basic_commands()
 
+    def _instantiate_handler(self, command: str,
+                             handler_class: Any) -> BaseCommand:
+        """
+        Instantiates a command handler.
+        This can be overridden in order to instantiate commands that have
+        more complex constructor/initialization needs the the default.
+
+        Args:
+            command (str): The name of the command to instantiate the handler for.
+            handler_class (Any): The class of the handler to instantiate.
+
+        Returns:
+            BaseCommand: An instance of the handler class, initialized with the current object.
+        """
+        return handler_class(self)
+    
     def _register_basic_commands(self) -> None:
         """Register essential commands that every REPL needs."""
         # Help command
@@ -145,10 +161,10 @@ class CommandRegistry(CommandHandler):
         # Check cache first
         handler_key = handler_class.__name__
         if handler_key in self.command_cache:
-            return self.command_cache[handler_key]
+            return self.command_cache[handler_key, ]
 
         # Instantiate handler
-        handler_instance = handler_class(self)
+        handler_instance = self._instantiate_handler(command, handler_class)
         self.command_cache[handler_key] = handler_instance
         return handler_instance
 
@@ -217,5 +233,5 @@ class CommandRegistry(CommandHandler):
                 logger.debug(f"Command {command} is handled by main loop")
                 
         except Exception as e:
-            logger.error(f"Error handling command {command_string}: {e}")
+            logger.opt(exception=True).error(f"Error handling command {command_string}: {e}")
             print(f"Error executing command: {e}")
