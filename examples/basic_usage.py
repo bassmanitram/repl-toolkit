@@ -51,7 +51,7 @@ class ExampleActionRegistry(ActionRegistry):
             handler=self._show_counter,
             command="/counter",
             command_usage="/counter - Show current message count",
-            keys="ctrl-c",
+            keys="ctrl-k",
             keys_description="Show message counter"
         )
         
@@ -96,7 +96,7 @@ class ExampleActionRegistry(ActionRegistry):
             print(f"📊 Message count: {count}")
             
             if context.triggered_by == "shortcut":
-                print("   (Triggered by Ctrl+C)")
+                print("   (Triggered by Ctrl+K)")
             elif context.triggered_by == "command":
                 print("   (Triggered by /counter command)")
         else:
@@ -155,12 +155,13 @@ async def main():
     print("  /counter   - Show message counter")
     print("  /reset     - Reset message counter")
     print("  /save      - Save conversation")
+    print("  /shell     - Drop to interactive shell")
     print("  /shortcuts - List keyboard shortcuts")
     print()
     print("Keyboard Shortcuts:")
     print("  F1         - Help")
     print("  F2         - Quick status")
-    print("  Ctrl+C     - Show counter")
+    print("  Ctrl+K     - Show counter")
     print("  Ctrl+S     - Save conversation")
     print()
     print("REPL Controls:")

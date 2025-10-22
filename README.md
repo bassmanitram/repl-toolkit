@@ -235,6 +235,7 @@ Every registry comes with essential built-in actions:
 |--------|---------|----------|-------------|
 | **Help** | `/help [action]` | `F1` | Show help for all actions or specific action |
 | **Shortcuts** | `/shortcuts` | - | List all keyboard shortcuts |  
+| **Shell** | `/shell` | - | Drop to interactive shell |
 | **Exit** | `/exit` | - | Exit the application |
 | **Quit** | `/quit` | - | Quit the application |
 

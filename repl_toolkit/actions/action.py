@@ -89,6 +89,8 @@ class Action:
     
     def __post_init__(self):
         """Validate action definition after initialization."""
+        logger.trace("Action.__post_init__() entry")
+        
         if not self.name:
             raise ValueError("Action name cannot be empty")
         
@@ -118,26 +120,37 @@ class Action:
         if self.keys and not self.keys_description:
             logger.warning(f"Action '{self.name}' has keys but no keys description")
 
+        logger.trace("Action.__post_init__() exit")
+
     @property
     def has_command(self) -> bool:
         """Check if action has a command binding."""
+        logger.trace("Action.has_command() entry/exit")
         return self.command is not None
         
     @property 
     def has_shortcut(self) -> bool:
         """Check if action has a keyboard shortcut binding."""
+        logger.trace("Action.has_shortcut() entry/exit")
         return self.keys is not None
         
     @property
     def is_main_loop_action(self) -> bool:
         """Check if action is handled by the main loop (handler is None)."""
+        logger.trace("Action.is_main_loop_action() entry/exit")
         return self.handler is None
         
     def get_keys_list(self) -> List[str]:
         """Get keys as a list, handling both string and list formats."""
+        logger.trace("Action.get_keys_list() entry")
+        
         if not self.keys:
+            logger.trace("Action.get_keys_list() exit - no keys")
             return []
-        return [self.keys] if isinstance(self.keys, str) else self.keys
+        
+        result = [self.keys] if isinstance(self.keys, str) else self.keys
+        logger.trace("Action.get_keys_list() exit")
+        return result
 
 
 @dataclass
@@ -163,6 +176,8 @@ class ActionContext:
     
     def __post_init__(self):
         """Set triggered_by based on available context."""
+        logger.trace("ActionContext.__post_init__() entry")
+        
         if self.triggered_by == "unknown":
             if self.event is not None:
                 self.triggered_by = "shortcut"
@@ -170,6 +185,8 @@ class ActionContext:
                 self.triggered_by = "command"
             else:
                 self.triggered_by = "programmatic"
+        
+        logger.trace("ActionContext.__post_init__() exit")
 
 
 class ActionError(Exception):
@@ -183,6 +200,7 @@ class ActionError(Exception):
             message: Error description
             action_name: Name of action that caused error (optional)
         """
+        logger.trace("ActionError.__init__() entry/exit")
         super().__init__(message)
         self.action_name = action_name
 

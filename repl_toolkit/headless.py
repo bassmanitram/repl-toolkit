@@ -40,8 +40,11 @@ async def run_headless_mode(
         else:
             print("Processing failed")
     """
+    logger.trace("run_headless_mode() entry")
+    
     if not initial_message:
         logger.warning("No initial message provided for headless mode")
+        logger.trace("run_headless_mode() exit - no message")
         return False
     
     logger.info(f"Running headless mode with message: {initial_message}")
@@ -54,8 +57,10 @@ async def run_headless_mode(
         else:
             logger.warning("Headless mode completed with backend reporting failure")
         
+        logger.trace("run_headless_mode() exit - success")
         return success
         
     except Exception as e:
         logger.error(f"Error in headless mode: {e}")
+        logger.trace("run_headless_mode() exit - exception")
         return False
