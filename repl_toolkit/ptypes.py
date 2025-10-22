@@ -1,31 +1,36 @@
 """
-Type definitions and protocols for repl_toolkit.
+Protocol types for repl_toolkit v2.
 
-This module defines the core interfaces that backends must implement
-to work with the REPL toolkit components.
+Defines the interface contracts that backends and handlers must implement
+for compatibility with the REPL toolkit.
 """
 
-from typing import Protocol, List, runtime_checkable
+from typing import Protocol, runtime_checkable, Optional, List
+from pathlib import Path
 
 
 @runtime_checkable
 class AsyncBackend(Protocol):
     """
-    Protocol for async REPL backends that process user input.
+    Protocol for async backends that process user input.
     
-    Backends implementing this protocol can be used with AsyncREPL
-    to handle user input in an interactive session.
+    Backends are responsible for handling user input and generating responses
+    in an asynchronous manner, supporting cancellation and error handling.
     """
-    
+
     async def handle_input(self, user_input: str) -> bool:
         """
-        Process user input asynchronously.
+        Handle user input asynchronously.
         
         Args:
             user_input: The input string from the user
             
         Returns:
-            bool: True if processing was successful, False otherwise
+            bool: True if processing was successful, False if there was an error
+            
+        Note:
+            This method should handle its own error reporting to the user.
+            The return value indicates success/failure for flow control.
         """
         ...
 
@@ -33,18 +38,18 @@ class AsyncBackend(Protocol):
 @runtime_checkable  
 class HeadlessBackend(Protocol):
     """
-    Protocol for headless backends that process input non-interactively.
+    Protocol for headless backends that process single interactions.
     
-    Backends implementing this protocol can be used with run_headless_mode
-    for scripted or piped input processing.
+    HeadlessBackend is a simplified interface for non-interactive scenarios
+    where a single input/output cycle is required.
     """
-    
+
     async def handle_input(self, user_input: str) -> bool:
         """
-        Process user input asynchronously.
+        Handle user input in headless mode.
         
         Args:
-            user_input: The input string from the user
+            user_input: The input string to process
             
         Returns:
             bool: True if processing was successful, False otherwise
@@ -53,20 +58,58 @@ class HeadlessBackend(Protocol):
 
 
 @runtime_checkable
-class CommandHandler(Protocol):
+class ActionHandler(Protocol):
     """
-    Protocol for handling command input (e.g., /help, /quit).
+    Protocol for action handlers in the action system.
     
-    Command handlers process commands that start with '/' and provide
-    additional functionality beyond basic input processing.
+    ActionHandler defines the interface for handling both command-based
+    and keyboard shortcut-based actions in a coherent manner.
     """
-    
-    async def handle_command(self, command: str) -> None:
+
+    async def execute_action(self, action_name: str, context: "ActionContext") -> None:
         """
-        Handle a command string.
+        Execute an action by name.
         
         Args:
-            command: The full command string including the leading '/'
+            action_name: Name of the action to execute
+            context: Action context containing relevant information
+            
+        Raises:
+            ActionError: If action execution fails
+        """
+        ...
+
+    async def handle_command(self, command_string: str) -> None:
+        """
+        Handle a command string by mapping to appropriate action.
+        
+        Args:
+            command_string: Full command string (e.g., '/help arg1 arg2')
+            
+        Note:
+            This method parses the command and maps it to the appropriate
+            action execution with proper context.
+        """
+        ...
+
+    def validate_action(self, action_name: str) -> bool:
+        """
+        Validate if an action is supported.
+        
+        Args:
+            action_name: Action name to validate
+            
+        Returns:
+            bool: True if action is supported, False otherwise
+        """
+        ...
+
+    def list_actions(self) -> List[str]:
+        """
+        Return a list of all available action names.
+        
+        Returns:
+            List of action names
         """
         ...
 
@@ -74,25 +117,25 @@ class CommandHandler(Protocol):
 @runtime_checkable
 class Completer(Protocol):
     """
-    Protocol for providing tab completion in interactive mode.
+    Protocol for auto-completion providers.
     
-    Completers suggest possible completions for partial user input
-    to improve the interactive experience.
+    Completers provide tab-completion suggestions for user input,
+    supporting both command completion and context-aware suggestions.
     """
-    
-    def get_completions(self, document, complete_event) -> List:
+
+    def get_completions(self, document, complete_event):
         """
-        Get completions for the current document state.
+        Get completions for the current input.
         
         Args:
-            document: The current document from prompt_toolkit
-            complete_event: The completion event from prompt_toolkit
+            document: Current document state from prompt_toolkit
+            complete_event: Completion event from prompt_toolkit
             
-        Returns:
-            List of Completion objects
+        Yields:
+            Completion: Individual completion suggestions
+            
+        Note:
+            This follows the prompt_toolkit Completer interface for
+            compatibility with the underlying prompt_toolkit system.
         """
         ...
-
-
-# Type aliases for common use cases
-BackendType = AsyncBackend | HeadlessBackend

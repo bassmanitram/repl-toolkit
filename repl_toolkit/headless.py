@@ -1,13 +1,11 @@
 """
-Headless interface for repl_toolkit.
+Headless mode for repl_toolkit v2.
 
-Provides non-interactive input processing suitable for scripted usage,
-piped input, and automation scenarios.
+Provides non-interactive execution for automated scenarios, batch processing,
+and integration testing.
 """
 
-import sys
 from typing import Optional
-
 from loguru import logger
 
 from .ptypes import HeadlessBackend
@@ -15,84 +13,49 @@ from .ptypes import HeadlessBackend
 
 async def run_headless_mode(
     backend: HeadlessBackend,
-    initial_message: Optional[str] = None,
-    input_stream=None
+    initial_message: Optional[str] = None
 ) -> bool:
     """
-    Run in headless mode for non-interactive input processing.
+    Run the backend in headless mode.
     
-    Processes input from stdin (or provided stream) line by line,
-    with support for explicit message boundaries using {{send}} commands.
+    Processes a single message through the backend without any interactive
+    UI components. This is useful for automated testing, batch processing,
+    or integration with other systems.
     
     Args:
-        backend: Backend to process the input
-        initial_message: Optional initial message to process first
-        input_stream: Optional input stream (defaults to sys.stdin)
+        backend: Backend that implements HeadlessBackend protocol
+        initial_message: Message to process (optional)
         
     Returns:
-        bool: True if all processing was successful, False otherwise
-    """
-    if input_stream is None:
-        input_stream = sys.stdin
+        bool: True if processing was successful, False otherwise
         
-    success = True
+    Example:
+        success = await run_headless_mode(
+            backend=my_backend,
+            initial_message="Process this message"
+        )
+        
+        if success:
+            print("Processing completed successfully")
+        else:
+            print("Processing failed")
+    """
+    if not initial_message:
+        logger.warning("No initial message provided for headless mode")
+        return False
     
-    # Process initial message if provided
-    if initial_message:
-        logger.debug(f"Processing initial message: {initial_message}")
-        try:
-            result = await backend.handle_input(initial_message)
-            if not result:
-                logger.warning("Initial message processing failed")
-                success = False
-        except Exception as e:
-            logger.error(f"Error processing initial message: {e}")
-            success = False
-    
-    # Process input from stream
-    buffer = []
+    logger.info(f"Running headless mode with message: {initial_message}")
     
     try:
-        for line in input_stream:
-            line = line.rstrip('\n\r')
-            
-            # Check for explicit send command
-            if line.strip() == "{{send}}":
-                if buffer:
-                    message = '\n'.join(buffer).strip()
-                    if message:  # Skip empty messages
-                        logger.debug(f"Processing buffered message: {message}")
-                        try:
-                            result = await backend.handle_input(message)
-                            if not result:
-                                logger.warning("Message processing failed")
-                                success = False
-                        except Exception as e:
-                            logger.error(f"Error processing message: {e}")
-                            success = False
-                    buffer = []
-            else:
-                buffer.append(line)
+        success = await backend.handle_input(initial_message)
         
-        # Process any remaining buffered content at EOF
-        if buffer:
-            message = '\n'.join(buffer).strip()
-            if message:  # Skip empty messages
-                logger.debug(f"Processing final buffered message: {message}")
-                try:
-                    result = await backend.handle_input(message)
-                    if not result:
-                        logger.warning("Final message processing failed")
-                        success = False
-                except Exception as e:
-                    logger.error(f"Error processing final message: {e}")
-                    success = False
-                    
-    except KeyboardInterrupt:
-        logger.info("Headless mode interrupted by user")
-        success = False
+        if success:
+            logger.info("Headless mode completed successfully")
+        else:
+            logger.warning("Headless mode completed with backend reporting failure")
+        
+        return success
+        
     except Exception as e:
         logger.error(f"Error in headless mode: {e}")
-        success = False
-    
-    return success
+        return False
