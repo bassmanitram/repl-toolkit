@@ -2,7 +2,7 @@
 
 ## Design Philosophy
 
-REPL Toolkit is built around the concept of **Actions** - a single system that handles both typed commands (`/help`) and keyboard shortcuts (`F1`) through the same interface.
+REPL Toolkit is built around the concept of **Actions** - a unified system that handles both typed commands (`/help`) and keyboard shortcuts (`F1`) through the same interface, with support for late backend binding to accommodate resource context scenarios.
 
 ## Core Architecture
 
@@ -15,10 +15,17 @@ AsyncREPL (User Interface)
     │   │
     │   ├── Action (Individual Actions)
     │   ├── ActionContext (Execution Context)
-    │   └── Built-in Actions (Help, Shortcuts, etc.)
+    │   └── Built-in Actions (Help, Shortcuts, Shell, etc.)
     │
     └── Backend (Business Logic)
         └── Your Application Code
+
+HeadlessREPL (Non-Interactive Interface)
+    │
+    ├── ActionRegistry (Same Action System)
+    │   └── stdin Processing + Buffer Management
+    │
+    └── Backend (Same Business Logic)
 ```
 
 ### Key Components
@@ -38,7 +45,7 @@ AsyncREPL (User Interface)
 - Context-aware execution
 - Built-in help generation
 
-#### 2. **REPL Interface** (`repl_toolkit.async_repl`)
+#### 2. **Interactive Interface** (`repl_toolkit.async_repl`)
 
 **Core Classes:**
 - `AsyncREPL`: Main interactive interface
@@ -49,13 +56,26 @@ AsyncREPL (User Interface)
 - Keyboard binding from action registry
 - History support with file persistence
 - Multi-line input with Alt+Enter submission
+- Late backend binding support
 - Robust error handling
 
-#### 3. **Protocol System** (`repl_toolkit.ptypes`)
+#### 3. **Headless Interface** (`repl_toolkit.headless_repl`)
+
+**Core Classes:**
+- `HeadlessREPL`: Non-interactive stdin processing
+- `run_headless_mode()`: Convenience function
+
+**Key Features:**
+- stdin line-by-line processing
+- Buffer accumulation until `/send` commands
+- Multiple send cycles support
+- Action system integration
+- EOF auto-send functionality
+
+#### 4. **Protocol System** (`repl_toolkit.ptypes`)
 
 **Core Protocols:**
 - `AsyncBackend`: Interface for business logic backends
-- `HeadlessBackend`: Interface for non-interactive backends  
 - `ActionHandler`: Interface for action registries
 - `Completer`: Interface for tab completion
 
@@ -64,14 +84,6 @@ AsyncREPL (User Interface)
 - Clear separation of concerns
 - Easy testing and mocking
 - Plugin architecture support
-
-#### 4. **Headless Mode** (`repl_toolkit.headless`) 
-
-**Features:**
-- Non-interactive execution
-- Batch processing support
-- Integration testing support
-- CI/CD friendly
 
 ## Action System Deep Dive
 
@@ -102,7 +114,7 @@ class Action:
 
 ### Action Patterns
 
-1. **Actions** (Command + Shortcut)
+1. **Dual Actions** (Command + Shortcut)
    ```python
    Action(
        name="help", handler=show_help,
@@ -143,23 +155,28 @@ The `ActionRegistry` provides:
 - **Execution**: Execute actions with rich context
 - **Help**: Auto-generate help and shortcut listings
 - **Organization**: Category-based action grouping
+- **Backend Integration**: Late binding support
 
 ### Action Context
 
 ```python
 @dataclass
 class ActionContext:
-    registry: ActionRegistry  # Access to registry
-    backend: Optional[Any]          # Your backend instance
-    event: Optional[Any]            # Keyboard event (shortcuts)
-    args: List[str]                 # Command arguments
-    triggered_by: str               # "command"|"shortcut"|"programmatic"
-    user_input: Optional[str]       # Original input string
+    registry: ActionRegistry     # Access to registry
+    backend: Optional[Any]       # Your backend instance
+    event: Optional[Any]         # Keyboard event (shortcuts)
+    args: List[str]              # Command arguments
+    triggered_by: str            # "command"|"shortcut"|"programmatic"
+    user_input: Optional[str]    # Original input string
+    
+    # Headless mode extensions
+    buffer: Optional[str] = None      # Current buffer content (headless)
+    headless_mode: bool = False       # Headless mode flag
 ```
 
 ## Execution Flow
 
-### Command Execution Flow
+### Interactive Command Execution
 
 ```
 User types "/help topic"
@@ -179,7 +196,7 @@ Execute action: show_help(context)
 Action displays help for "topic"
 ```
 
-### Keyboard Shortcut Flow
+### Interactive Keyboard Shortcut Flow
 
 ```
 User presses F1
@@ -197,15 +214,51 @@ Execute action: show_help(context)
 Action displays general help
 ```
 
+### Headless Processing Flow
+
+```
+stdin: "Line 1\nLine 2\n/send\nLine 3\n"
+    ↓
+HeadlessREPL._stdin_loop() processes line by line
+    ↓
+"Line 1" → Add to buffer
+"Line 2" → Add to buffer  
+"/send" → Execute send: backend.handle_input("Line 1\nLine 2")
+"Line 3" → Add to buffer
+EOF → Execute send: backend.handle_input("Line 3")
+```
+
+## Late Backend Binding
+
+### Pattern Overview
+
+The architecture supports initializing the REPL before the backend is available:
+
+```python
+# Create REPL without backend
+repl = AsyncREPL(action_registry=my_actions)
+
+# Backend becomes available later (e.g., in resource context)
+async with get_database_connection() as db:
+    backend = DatabaseBackend(db)
+    await repl.run(backend)  # Backend injected at runtime
+```
+
+### Implementation Details
+
+1. **ActionRegistry.backend**: Property that can be set after initialization
+2. **ActionContext.backend**: Backend passed through context to actions
+3. **Validation**: Actions can check for backend availability
+4. **Error Handling**: Graceful handling when backend is unavailable
+
 ## Extension Points
 
 ### Custom Action Registry
 
 ```python
 class MyActionRegistry(ActionRegistry):
-    def __init__(self, backend):
+    def __init__(self):
         super().__init__()
-        self.backend = backend
         self._register_my_actions()
     
     def _register_my_actions(self):
@@ -218,10 +271,11 @@ class MyActionRegistry(ActionRegistry):
             keys="F9"
         )
     
-    async def _custom_handler(self, context: ActionContext):
-        # Access backend: self.backend
+    def _custom_handler(self, context: ActionContext):
+        # Access backend: context.backend
         # Access registry: context.registry
         # Check trigger: context.triggered_by
+        # Check headless: context.headless_mode
         pass
 ```
 
@@ -252,9 +306,25 @@ class MyBackend:
         return True
 
 # Backend available in action context
-async def my_action_handler(context: ActionContext):
+def my_action_handler(context: ActionContext):
     backend = context.backend
-    print(f"Last input was: {backend.data['last_input']}")
+    if backend:
+        print(f"Last input was: {backend.data['last_input']}")
+    else:
+        print("Backend not available")
+```
+
+### Headless Mode Extensions
+
+```python
+def headless_aware_action(context: ActionContext):
+    if context.headless_mode:
+        # Headless-specific behavior
+        if context.buffer:
+            print(f"Current buffer: {len(context.buffer)} characters")
+    else:
+        # Interactive behavior
+        print("Interactive mode")
 ```
 
 ## Testing Architecture
@@ -272,12 +342,12 @@ class MockBackend:
         return True
 
 # Test action execution
-async def test_action():
+def test_action():
     registry = ActionRegistry()
     backend = MockBackend()
     
     context = ActionContext(registry=registry, backend=backend)
-    await registry.execute_action("show_help", context)
+    registry.execute_action("show_help", context)
 ```
 
 ### Action Testing Patterns
@@ -286,22 +356,39 @@ async def test_action():
 # Test action registration
 def test_register_action():
     registry = ActionRegistry()
-    action = Action(name="test", ...)
+    action = Action(name="test", description="Test", category="Test", 
+                   handler=lambda ctx: None, command="/test")
     registry.register_action(action)
     assert registry.validate_action("test")
 
 # Test command handling
-async def test_command_handling():
+def test_command_handling():
     registry = ActionRegistry()
-    await registry.handle_command("/help")
+    registry.handle_command("/help")
     # Verify expected behavior
 
 # Test shortcut handling  
-async def test_shortcut_handling():
+def test_shortcut_handling():
     registry = ActionRegistry()
     mock_event = Mock()
-    await registry.handle_shortcut("F1", mock_event)
+    registry.handle_shortcut("F1", mock_event)
     # Verify expected behavior
+```
+
+### Headless Testing
+
+```python
+@pytest.mark.asyncio
+async def test_headless_processing():
+    backend = MockBackend()
+    stdin_input = "Line 1\nLine 2\n/send\n"
+    
+    repl = HeadlessREPL()
+    
+    with patch('sys.stdin', StringIO(stdin_input)):
+        await repl._stdin_loop(backend)
+    
+    assert backend.inputs == ["Line 1\nLine 2"]
 ```
 
 ## Performance Considerations
@@ -338,6 +425,12 @@ async def test_shortcut_handling():
 - **Key combination validation**: Keyboard shortcut validation
 - **Error boundaries**: Exceptions isolated to individual actions
 
+### Headless Security
+
+- **stdin Processing**: Safe line-by-line processing
+- **Buffer Management**: Controlled buffer size and content
+- **Command Validation**: Same validation as interactive mode
+
 ## Future Extensibility
 
 ### Plugin Architecture
@@ -355,6 +448,26 @@ The protocol-based design enables:
 - **Deprecation paths**: Smooth migration paths for breaking changes
 - **Feature flags**: Optional features with graceful degradation
 
----
+## Implementation Notes
 
-This architecture provides a solid foundation for building rich, interactive CLI applications with modern Python best practices.
+### Synchronous vs Asynchronous
+
+- **Action Handlers**: Synchronous by default for simplicity
+- **Backend Operations**: Asynchronous for I/O operations
+- **Mixed Patterns**: Actions can handle async operations internally
+
+### Error Handling Strategy
+
+- **Action Errors**: Isolated to individual actions
+- **Backend Errors**: Propagated with context
+- **System Errors**: Graceful degradation
+- **User Feedback**: Clear error messages
+
+### Logging Integration
+
+- **Trace Logging**: Entry/exit logging for debugging
+- **Structured Logging**: Consistent log format with loguru
+- **Performance Logging**: Optional performance metrics
+- **Error Logging**: Comprehensive error context
+
+This architecture provides a solid foundation for building rich, interactive CLI applications with modern Python best practices, supporting both interactive and automated use cases.

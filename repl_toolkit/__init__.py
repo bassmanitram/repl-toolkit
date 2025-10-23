@@ -34,13 +34,14 @@ __license__ = "MIT"
 
 # Core exports
 from .async_repl import AsyncREPL, run_async_repl
-from .headless import run_headless_mode
+from .headless_repl import run_headless_mode, HeadlessREPL
 from .actions import ActionRegistry, Action, ActionContext, ActionError
-from .ptypes import AsyncBackend, HeadlessBackend, ActionHandler, Completer
+from .ptypes import AsyncBackend, ActionHandler, Completer
 
 __all__ = [
     # Core classes
     "AsyncREPL",
+    "HeadlessREPL",
     "ActionRegistry", 
     "Action",
     "ActionContext",
@@ -52,7 +53,6 @@ __all__ = [
     
     # Protocols/Types
     "AsyncBackend",
-    "HeadlessBackend", 
     "ActionHandler",
     "Completer",
 ]

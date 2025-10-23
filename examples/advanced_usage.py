@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Advanced usage example for repl_toolkit v1.0.
+Advanced usage example for repl_toolkit.
 
 This example demonstrates advanced features including:
 - Custom action handlers with validation
@@ -69,7 +69,7 @@ class AdvancedBackend:
         }
         self.conversation_history.append(response)
         
-        print(f"🤖 {response_content}")
+        print(f"Assistant: {response_content}")
         return True
     
     def get_stats(self) -> Dict:
@@ -194,7 +194,7 @@ class AdvancedActionRegistry(ActionRegistry):
             backend = self._get_backend(context)
             stats = backend.get_stats()
             
-            print("📊 Session Statistics:")
+            print("Session Statistics:")
             print(f"   Messages sent: {stats['messages']}")
             print(f"   Conversation entries: {stats['conversation_length']}")
             print(f"   Session duration: {stats['duration_seconds']:.1f} seconds")
@@ -204,7 +204,7 @@ class AdvancedActionRegistry(ActionRegistry):
             if context.triggered_by == "shortcut":
                 print("   (Stats via F3 shortcut)")
         except ActionError as e:
-            print(f"❌ {e}")
+            print(f"Error: {e}")
     
     def _show_history(self, context: ActionContext):
         """Show conversation history."""
@@ -219,27 +219,27 @@ class AdvancedActionRegistry(ActionRegistry):
                     if count <= 0:
                         raise ValueError("Count must be positive")
                 except ValueError as e:
-                    print(f"❌ Invalid count: {e}")
+                    print(f"Invalid count: {e}")
                     return
             
             history = backend.conversation_history[-count:]
             
             if not history:
-                print("📜 No conversation history available")
+                print("No conversation history available")
                 return
             
-            print(f"📜 Last {len(history)} messages:")
+            print(f"Last {len(history)} messages:")
             print("-" * 50)
             
             for msg in history:
                 timestamp = datetime.fromisoformat(msg['timestamp']).strftime("%H:%M:%S")
-                role = "👤" if msg['type'] == 'user' else "🤖"
+                role = "User" if msg['type'] == 'user' else "Assistant"
                 content = msg['content'][:100] + "..." if len(msg['content']) > 100 else msg['content']
-                print(f"{timestamp} {role} {content}")
+                print(f"{timestamp} {role}: {content}")
             
             print("-" * 50)
         except ActionError as e:
-            print(f"❌ {e}")
+            print(f"Error: {e}")
     
     def _search_conversation(self, context: ActionContext):
         """Search conversation history."""
@@ -247,7 +247,7 @@ class AdvancedActionRegistry(ActionRegistry):
             backend = self._get_backend(context)
             
             if not context.args:
-                print("❌ Please provide a search query")
+                print("Please provide a search query")
                 print("Usage: /search <query>")
                 return
             
@@ -255,20 +255,20 @@ class AdvancedActionRegistry(ActionRegistry):
             results = backend.search_conversation(query)
             
             if not results:
-                print(f"🔍 No messages found containing '{query}'")
+                print(f"No messages found containing '{query}'")
                 return
             
-            print(f"🔍 Found {len(results)} messages containing '{query}':")
+            print(f"Found {len(results)} messages containing '{query}':")
             print("-" * 50)
             
             for msg in results:
                 timestamp = datetime.fromisoformat(msg['timestamp']).strftime("%H:%M:%S")
-                role = "👤" if msg['type'] == 'user' else "🤖"
-                print(f"{timestamp} {role} {msg['content']}")
+                role = "User" if msg['type'] == 'user' else "Assistant"
+                print(f"{timestamp} {role}: {msg['content']}")
             
             print("-" * 50)
         except ActionError as e:
-            print(f"❌ {e}")
+            print(f"Error: {e}")
     
     def _export_conversation(self, context: ActionContext):
         """Export conversation to JSON file."""
@@ -291,16 +291,16 @@ class AdvancedActionRegistry(ActionRegistry):
             with open(filename, 'w', encoding='utf-8') as f:
                 json.dump(export_data, f, indent=2, ensure_ascii=False)
             
-            print(f"💾 Conversation exported to '{filename}'")
+            print(f"Conversation exported to '{filename}'")
             print(f"   {len(backend.conversation_history)} messages exported")
             
             if context.triggered_by == "shortcut":
                 print("   (Exported via Ctrl+E)")
                 
         except ActionError as e:
-            print(f"❌ {e}")
+            print(f"Error: {e}")
         except Exception as e:
-            print(f"❌ Export failed: {e}")
+            print(f"Export failed: {e}")
     
     def _clear_history(self, context: ActionContext):
         """Clear conversation history with confirmation."""
@@ -310,17 +310,17 @@ class AdvancedActionRegistry(ActionRegistry):
             count = len(backend.conversation_history)
             
             if count == 0:
-                print("📜 No conversation history to clear")
+                print("No conversation history to clear")
                 return
             
-            print(f"⚠️  This will delete {count} conversation messages.")
+            print(f"This will delete {count} conversation messages.")
             print("This action cannot be undone!")
             
             # In a real implementation, you might want to add confirmation
             backend.conversation_history.clear()
-            print("🗑️  Conversation history cleared")
+            print("Conversation history cleared")
         except ActionError as e:
-            print(f"❌ {e}")
+            print(f"Error: {e}")
     
     def _toggle_debug(self, context: ActionContext):
         """Toggle debug information display."""
@@ -331,36 +331,34 @@ class AdvancedActionRegistry(ActionRegistry):
             
             if debug_context in backend.active_contexts:
                 backend.active_contexts.remove(debug_context)
-                print("🐛 Debug mode: OFF")
+                print("Debug mode: OFF")
             else:
                 backend.active_contexts.add(debug_context)
-                print("🐛 Debug mode: ON")
+                print("Debug mode: ON")
                 print(f"   Action: {context.triggered_by}")
                 print(f"   Registry: {len(self.actions)} actions")
                 print(f"   Backend: {type(backend).__name__}")
         except ActionError as e:
-            print(f"❌ {e}")
+            print(f"Error: {e}")
     
     def _register_dynamic_action(self, context: ActionContext):
         """Register a new action dynamically."""
         if len(context.args) < 2:
-            print("❌ Usage: /register <name> <description>")
+            print("Usage: /register <name> <description>")
             return
         
         name = context.args[0]
         description = " ".join(context.args[1:])
         
         if name in self.actions:
-            print(f"❌ Action '{name}' already exists")
+            print(f"Action '{name}' already exists")
             return
         
-        # Create a simple handler (synchronous)
+        # Create a simple handler
         def dynamic_handler(ctx):
-            print(f"🎯 Dynamic action '{name}' executed!")
+            print(f"Dynamic action '{name}' executed!")
             print(f"   Description: {description}")
             print(f"   Triggered by: {ctx.triggered_by}")
-            # Note: If you need async operations in dynamic handlers, 
-            # handle them internally with asyncio.run() or similar
         
         try:
             # Register as command-only action
@@ -373,16 +371,16 @@ class AdvancedActionRegistry(ActionRegistry):
                 command_usage=f"/{name} - {description}"
             )
             
-            print(f"✅ Dynamic action '{name}' registered!")
+            print(f"Dynamic action '{name}' registered!")
             print(f"   Use /{name} to execute it")
             
         except Exception as e:
-            print(f"❌ Failed to register action: {e}")
+            print(f"Failed to register action: {e}")
 
 
 async def main():
     """Run the advanced example REPL with late backend binding."""
-    print("🚀 REPL Toolkit v1.0 - Advanced Usage Example")
+    print("REPL Toolkit v1.0 - Advanced Usage Example")
     print("=" * 60)
     print()
     print("This example demonstrates advanced features with late backend binding:")
@@ -426,14 +424,14 @@ async def main():
             history_path=Path("/tmp/repl_toolkit_advanced_history.txt")
         )
     except KeyboardInterrupt:
-        print("\n👋 Session ended!")
+        print("\nSession ended!")
         
         # Show final stats
         stats = backend.get_stats()
         print(f"Final stats: {stats['messages']} messages in {stats['duration_seconds']:.1f}s")
         
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
         return 1
     
     return 0

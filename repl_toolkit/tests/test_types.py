@@ -6,7 +6,7 @@ import pytest
 from typing import Protocol, runtime_checkable
 from unittest.mock import Mock, AsyncMock
 
-from repl_toolkit.ptypes import AsyncBackend, HeadlessBackend, ActionHandler, Completer
+from repl_toolkit.ptypes import AsyncBackend, ActionHandler, Completer
 from repl_toolkit.actions import ActionRegistry
 
 
@@ -23,21 +23,6 @@ class TestProtocolCompliance:
         backend = TestAsyncBackend()
         assert isinstance(backend, AsyncBackend)
         assert hasattr(backend, 'handle_input')
-    
-    def test_headless_backend_protocol(self):
-        """Test HeadlessBackend protocol compliance."""
-        
-        class TestHeadlessBackend:
-            async def handle_input(self, user_input: str) -> bool:
-                return True
-            
-            def process_message(self, message: str) -> str:
-                return f"Processed: {message}"
-        
-        backend = TestHeadlessBackend()
-        assert isinstance(backend, HeadlessBackend)
-        assert hasattr(backend, 'handle_input')
-        assert hasattr(backend, 'process_message')
     
     def test_action_handler_protocol(self):
         """Test ActionHandler protocol compliance."""
@@ -86,18 +71,6 @@ class TestMockBackendCompliance:
         assert hasattr(mock_backend, 'handle_input')
         assert callable(mock_backend.handle_input)
     
-    def test_mock_backend_headless_protocol(self):
-        """Test mock backend implements HeadlessBackend protocol."""
-        mock_backend = Mock(spec=HeadlessBackend)
-        mock_backend.handle_input = AsyncMock(return_value=True)
-        mock_backend.process_message = Mock(return_value="processed")
-        
-        # Should have required methods
-        assert hasattr(mock_backend, 'handle_input')
-        assert hasattr(mock_backend, 'process_message')
-        assert callable(mock_backend.handle_input)
-        assert callable(mock_backend.process_message)
-    
     @pytest.mark.asyncio
     async def test_mock_backend_functionality(self):
         """Test mock backend functionality."""
@@ -144,3 +117,57 @@ class TestRegistryProtocolCompliance:
         actions = self.registry.list_actions()
         assert isinstance(actions, list)
         assert len(actions) > 0
+
+
+class TestBackendUsagePatterns:
+    """Test common backend usage patterns for both interactive and headless modes."""
+    
+    def test_backend_for_interactive_mode(self):
+        """Test backend suitable for interactive mode."""
+        
+        class InteractiveBackend:
+            async def handle_input(self, user_input: str) -> bool:
+                # Interactive backends might do complex processing
+                print(f"Processing: {user_input}")
+                return True
+        
+        backend = InteractiveBackend()
+        assert isinstance(backend, AsyncBackend)
+    
+    def test_backend_for_headless_mode(self):
+        """Test backend suitable for headless mode."""
+        
+        class HeadlessBackend:
+            def __init__(self):
+                self.results = []
+            
+            async def handle_input(self, user_input: str) -> bool:
+                # Headless backends might accumulate results
+                self.results.append(f"Processed: {user_input}")
+                return True
+        
+        backend = HeadlessBackend()
+        assert isinstance(backend, AsyncBackend)
+        assert hasattr(backend, 'results')
+    
+    def test_unified_backend_for_both_modes(self):
+        """Test backend that works for both interactive and headless modes."""
+        
+        class UnifiedBackend:
+            def __init__(self, mode="interactive"):
+                self.mode = mode
+                self.results = []
+            
+            async def handle_input(self, user_input: str) -> bool:
+                if self.mode == "interactive":
+                    print(f"Interactive: {user_input}")
+                else:
+                    self.results.append(user_input)
+                return True
+        
+        # Same backend class works for both modes
+        interactive_backend = UnifiedBackend("interactive")
+        headless_backend = UnifiedBackend("headless")
+        
+        assert isinstance(interactive_backend, AsyncBackend)
+        assert isinstance(headless_backend, AsyncBackend)

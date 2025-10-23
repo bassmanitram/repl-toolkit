@@ -173,6 +173,8 @@ class ActionContext:
     args: List[str] = field(default_factory=list)  # Command arguments
     triggered_by: str = "unknown"               # How action was triggered
     user_input: Optional[str] = None            # Original user input
+    headless_mode: bool = False              # Whether in headless mode
+    buffer: Optional[Any] = None               # Reference to input buffer (if applicable)
     
     def __post_init__(self):
         """Set triggered_by based on available context."""

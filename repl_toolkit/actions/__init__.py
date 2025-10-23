@@ -1,5 +1,5 @@
 """
-Action system for repl_toolkit v2.
+Action system for repl_toolkit.
 
 This module provides the action architecture that combines command
 and keyboard shortcut handling into a single, extensible framework.

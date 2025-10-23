@@ -34,7 +34,7 @@ class AsyncREPL:
     Provides user input handling, action processing (commands and shortcuts),
     and robust cancellation of long-running tasks with a clean, extensible interface.
     
-    The v2 AsyncREPL supports late backend binding, allowing initialization without
+    The AsyncREPL supports late backend binding, allowing initialization without
     a backend for scenarios where the backend is only available within a resource
     context block.
     """
@@ -330,7 +330,7 @@ class AsyncREPL:
             await listener_task
 
             self.main_app.renderer.reset()
-            self.main_app.renderer.invalidate()
+            self.main_app.invalidate()
             await asyncio.sleep(0)
 
         logger.trace("AsyncREPL._process_input() exit")

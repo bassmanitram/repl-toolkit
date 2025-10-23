@@ -1,5 +1,5 @@
 """
-Test suite for repl_toolkit v2.
+Test suite for repl_toolkit.
 
 Comprehensive tests for the action system and REPL functionality.
 """

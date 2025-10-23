@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Basic usage example for repl_toolkit with actions.
+Basic usage example for repl_toolkit.
 
 This example demonstrates how to create a simple REPL with both commands
 and keyboard shortcuts using the action system with late backend binding.
@@ -93,14 +93,14 @@ class ExampleActionRegistry(ActionRegistry):
         backend = context.backend or self.backend
         if backend:
             count = backend.message_count
-            print(f"📊 Message count: {count}")
+            print(f"Message count: {count}")
             
             if context.triggered_by == "shortcut":
                 print("   (Triggered by Ctrl+K)")
             elif context.triggered_by == "command":
                 print("   (Triggered by /counter command)")
         else:
-            print("❌ Backend not available")
+            print("Backend not available")
     
     def _reset_counter(self, context: ActionContext):
         """Reset the message counter."""
@@ -108,14 +108,14 @@ class ExampleActionRegistry(ActionRegistry):
         if backend:
             old_count = backend.message_count
             backend.message_count = 0
-            print(f"🔄 Counter reset from {old_count} to 0")
+            print(f"Counter reset from {old_count} to 0")
         else:
-            print("❌ Backend not available")
+            print("Backend not available")
     
     def _quick_status(self, context: ActionContext):
         """Show quick status information."""
         backend = context.backend or self.backend
-        print("⚡ Quick Status:")
+        print("Quick Status:")
         if backend:
             print(f"   Messages: {backend.message_count}")
             print(f"   Backend: {type(backend).__name__}")
@@ -131,12 +131,9 @@ class ExampleActionRegistry(ActionRegistry):
         if context.args and len(context.args) > 0:
             filename = context.args[0]
         
-        # Simulate saving (synchronously)
-        print(f"💾 Saving conversation to '{filename}'...")
-        # Note: In real usage, if you need async operations, handle them internally:
-        # import asyncio
-        # asyncio.run(some_async_save_operation())
-        print(f"✅ Conversation saved!")
+        # Simulate saving
+        print(f"Saving conversation to '{filename}'...")
+        print(f"Conversation saved!")
         
         if context.triggered_by == "shortcut":
             print("   (Triggered by Ctrl+S)")
@@ -144,7 +141,7 @@ class ExampleActionRegistry(ActionRegistry):
 
 async def main():
     """Run the example REPL with late backend binding."""
-    print("🚀 REPL Toolkit v1.0 - Basic Usage Example")
+    print("REPL Toolkit v1.0 - Basic Usage Example")
     print("=" * 50)
     print()
     print("This example demonstrates the action system with late backend binding.")
@@ -187,9 +184,9 @@ async def main():
             initial_message=None
         )
     except KeyboardInterrupt:
-        print("\n👋 Goodbye!")
+        print("\nGoodbye!")
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
         return 1
     
     return 0
@@ -202,7 +199,7 @@ async def main_with_resource_context():
     This pattern is useful when the backend requires resources that are only
     available within a specific context (database connections, API clients, etc.)
     """
-    print("🚀 Resource Context Example")
+    print("Resource Context Example")
     print("=" * 30)
     
     # Create REPL and action registry without backend
@@ -215,25 +212,25 @@ async def main_with_resource_context():
             self.backend = None
         
         async def __aenter__(self):
-            print("📡 Acquiring resources...")
+            print("Acquiring resources...")
             await asyncio.sleep(0.1)  # Simulate resource acquisition
             self.backend = ExampleBackend()
-            print("✅ Resources acquired, backend available")
+            print("Resources acquired, backend available")
             return self.backend
         
         async def __aexit__(self, exc_type, exc_val, exc_tb):
-            print("🔒 Releasing resources...")
+            print("Releasing resources...")
             await asyncio.sleep(0.1)  # Simulate cleanup
-            print("✅ Resources released")
+            print("Resources released")
     
     try:
         # Backend only available within resource context
         async with ResourceContext() as backend:
             await repl.run(backend, "Welcome! Backend is now available.")
     except KeyboardInterrupt:
-        print("\n👋 Context closed!")
+        print("\nContext closed!")
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
         return 1
     
     return 0

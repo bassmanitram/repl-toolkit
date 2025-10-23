@@ -303,7 +303,7 @@ class ActionRegistry(ActionHandler):
             logger.trace("ActionRegistry.execute_action() exit - exception")
             raise ActionExecutionError(f"Failed to execute action '{action_name}': {e}", action_name)
     
-    def handle_command(self, command_string: str) -> None:
+    def handle_command(self, command_string: str, **kwargs) -> None:
         """
         Handle a command string by mapping to appropriate action.
         
@@ -342,6 +342,8 @@ class ActionRegistry(ActionHandler):
             triggered_by="command",
             user_input=command_string
         )
+
+        vars(context).update(kwargs)
         
         try:
             self.execute_action(action.name, context)
@@ -354,7 +356,7 @@ class ActionRegistry(ActionHandler):
             print(f"An unexpected error occurred: {e}")
             logger.trace("ActionRegistry.handle_command() exit - unexpected error")
     
-    def handle_shortcut(self, key_combo: str, event: Any) -> None:
+    def handle_shortcut(self, key_combo: str, event: Any, **kwargs) -> None:
         """
         Handle a keyboard shortcut by mapping to appropriate action.
         
@@ -380,6 +382,8 @@ class ActionRegistry(ActionHandler):
             triggered_by="shortcut"
         )
         
+        vars(context).update(kwargs)
+
         try:
             self.execute_action(action.name, context)
             logger.trace("ActionRegistry.handle_shortcut() exit - success")

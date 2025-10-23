@@ -1,5 +1,5 @@
 """
-Protocol types for repl_toolkit v2.
+Protocol types for repl_toolkit.
 
 Defines the interface contracts that backends and handlers must implement
 for compatibility with the REPL toolkit.
@@ -34,29 +34,6 @@ class AsyncBackend(Protocol):
         """
         ...
 
-
-@runtime_checkable  
-class HeadlessBackend(Protocol):
-    """
-    Protocol for headless backends that process single interactions.
-    
-    HeadlessBackend is a simplified interface for non-interactive scenarios
-    where a single input/output cycle is required.
-    """
-
-    async def handle_input(self, user_input: str) -> bool:
-        """
-        Handle user input in headless mode.
-        
-        Args:
-            user_input: The input string to process
-            
-        Returns:
-            bool: True if processing was successful, False otherwise
-        """
-        ...
-
-
 @runtime_checkable
 class ActionHandler(Protocol):
     """
@@ -66,7 +43,7 @@ class ActionHandler(Protocol):
     and keyboard shortcut-based actions in a coherent manner.
     """
 
-    async def execute_action(self, action_name: str, context: "ActionContext") -> None:
+    def execute_action(self, action_name: str, context: "ActionContext") -> None:
         """
         Execute an action by name.
         
@@ -79,12 +56,13 @@ class ActionHandler(Protocol):
         """
         ...
 
-    async def handle_command(self, command_string: str) -> None:
+    def handle_command(self, command_string: str, **kwargs) -> None:
         """
         Handle a command string by mapping to appropriate action.
         
         Args:
             command_string: Full command string (e.g., '/help arg1 arg2')
+            **kwargs: Additional context parameters (e.g., headless_mode, buffer)
             
         Note:
             This method parses the command and maps it to the appropriate

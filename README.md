@@ -24,7 +24,7 @@ A Python toolkit for building interactive REPL and headless interfaces with supp
 - **Documentation**: Complete API documentation and examples
 - **Performance**: Efficient action lookup and execution
 - **Logging**: Structured logging with loguru integration
-- **Headless Support**: Non-interactive mode for automation
+- **Headless Support**: Non-interactive mode for automation and testing
 
 ## Installation
 
@@ -72,7 +72,7 @@ class MyActions(ActionRegistry):
         # Access backend through context
         backend = context.backend
         filename = context.args[0] if context.args else "data.txt"
-        print(f"💾 Saving to {filename}")
+        print(f"Saving to {filename}")
         if context.triggered_by == "shortcut":
             print("   (Triggered by Ctrl+S)")
 
@@ -93,7 +93,7 @@ if __name__ == "__main__":
 
 ### Resource Context Pattern
 
-The late backend binding pattern is especially useful when your backend requires resources that are only available within a specific context:
+The late backend binding pattern is useful when your backend requires resources that are only available within a specific context:
 
 ```python
 import asyncio
@@ -126,7 +126,7 @@ asyncio.run(main())
 Users can now:
 - Type `/save myfile.txt` OR press `Ctrl+S`
 - Type `/help` OR press `F1` for help
-- All actions work seamlessly both ways!
+- All actions work seamlessly both ways
 
 ## Core Concepts
 
@@ -229,13 +229,13 @@ def my_handler(context: ActionContext):
 
 ## Built-in Actions
 
-Every registry comes with essential built-in actions:
+Every registry comes with built-in actions:
 
 | Action | Command | Shortcut | Description |
 |--------|---------|----------|-------------|
 | **Help** | `/help [action]` | `F1` | Show help for all actions or specific action |
 | **Shortcuts** | `/shortcuts` | - | List all keyboard shortcuts |  
-| **Shell** | `/shell` | - | Drop to interactive shell |
+| **Shell** | `/shell [cmd]` | - | Drop to interactive shell or run command |
 | **Exit** | `/exit` | - | Exit the application |
 | **Quit** | `/quit` | - | Quit the application |
 
@@ -260,11 +260,48 @@ keys="ctrl-alt-d"  # Ctrl+Alt+D
 keys=["F5", "ctrl-r"]  # Either F5 OR Ctrl+R
 ```
 
+## Headless Mode
+
+For automation, testing, and batch processing:
+
+```python
+import asyncio
+from repl_toolkit import run_headless_mode
+
+class BatchBackend:
+    async def handle_input(self, user_input: str) -> bool:
+        # Process input without user interaction
+        result = await process_batch_input(user_input)
+        return result
+
+async def main():
+    backend = BatchBackend()
+    
+    # Process initial message, then read from stdin
+    success = await run_headless_mode(
+        backend=backend,
+        initial_message="Starting batch processing"
+    )
+    
+    return 0 if success else 1
+
+# Usage:
+# echo -e "Line 1\nLine 2\n/send\nLine 3" | python script.py
+```
+
+### Headless Features
+
+- **stdin Processing**: Reads input line by line from stdin
+- **Buffer Accumulation**: Content lines accumulate until `/send` command
+- **Multiple Send Cycles**: Support for multiple `/send` operations
+- **Command Processing**: Full action system support in headless mode
+- **EOF Handling**: Automatically sends remaining buffer on EOF
+
 ## Architecture
 
 ### Late Backend Binding
 
-The v2 architecture supports late backend binding, allowing you to initialize the REPL before the backend is available:
+The architecture supports late backend binding, allowing you to initialize the REPL before the backend is available:
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
@@ -365,7 +402,7 @@ class AdvancedActions(ActionRegistry):
     def _show_stats(self, context):
         backend = context.backend
         count = len(backend.data) if backend else 0
-        print(f"📊 Statistics: {count} items stored")
+        print(f"Statistics: {count} items stored")
 
 async def main():
     actions = AdvancedActions()
@@ -392,8 +429,9 @@ pytest
 pytest --cov=repl_toolkit --cov-report=html
 
 # Run specific test categories
-pytest -m unit           # Unit tests only
-pytest -m integration    # Integration tests only
+pytest repl_toolkit/tests/test_actions.py     # Action system tests
+pytest repl_toolkit/tests/test_async_repl.py  # REPL interface tests
+pytest repl_toolkit/tests/test_headless.py    # Headless mode tests
 ```
 
 ### Writing Tests
@@ -451,7 +489,7 @@ class ActionRegistry(ActionHandler):
     def register_action(self, name, description, category, handler, command=None, keys=None, **kwargs) -> None
     
     def execute_action(self, action_name: str, context: ActionContext) -> None
-    def handle_command(self, command_string: str) -> None
+    def handle_command(self, command_string: str, **kwargs) -> None
     def handle_shortcut(self, key_combo: str, event: Any) -> None
     
     def validate_action(self, action_name: str) -> bool
@@ -476,8 +514,9 @@ async def run_async_repl(
 #### `run_headless_mode()`
 ```python
 async def run_headless_mode(
-    backend: HeadlessBackend,
-    initial_message: Optional[str] = None
+    backend: AsyncBackend,
+    action_registry: Optional[ActionHandler] = None,
+    initial_message: Optional[str] = None,
 ) -> bool
 ```
 
@@ -489,17 +528,11 @@ class AsyncBackend(Protocol):
     async def handle_input(self, user_input: str) -> bool: ...
 ```
 
-#### `HeadlessBackend`  
-```python
-class HeadlessBackend(Protocol):
-    async def handle_input(self, user_input: str) -> bool: ...
-```
-
 #### `ActionHandler`
 ```python
 class ActionHandler(Protocol):
     def execute_action(self, action_name: str, context: ActionContext) -> None: ...
-    def handle_command(self, command_string: str) -> None: ...
+    def handle_command(self, command_string: str, **kwargs) -> None: ...
     def validate_action(self, action_name: str) -> bool: ...
     def list_actions(self) -> List[str]: ...
 ```
@@ -550,8 +583,6 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
-- Built on [prompt-toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit) for excellent terminal handling
-- Logging by [loguru](https://github.com/Delgan/loguru) for beautiful structured logs
+- Built on [prompt-toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit) for terminal handling
+- Logging by [loguru](https://github.com/Delgan/loguru) for structured logs
 - Inspired by modern CLI tools and REPL interfaces
-
----
