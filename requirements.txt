@@ -1,0 +1,14 @@
+# Core dependencies
+prompt-toolkit>=3.0.0
+loguru>=0.5.0
+
+# Test dependencies
+pytest>=6.0
+pytest-asyncio>=0.18.0
+pytest-cov>=3.0.0
+
+# Development dependencies
+black>=22.0.0
+isort>=5.0.0
+flake8>=4.0.0
+mypy>=0.991

@@ -1,20 +1,21 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "repl-toolkit"
-version = "0.2.0"
-description = "A toolkit for building interactive REPL and headless interfaces"
+version = "1.0.0"
+description = "A Python toolkit for building interactive REPL and headless interfaces with action support"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
-    {name = "REPL Toolkit Contributors"},
+    {name = "REPL Toolkit Contributors", email = "martin.j.bartlett@gmail.com"}
 ]
+keywords = ["repl", "cli", "interactive", "chat", "toolkit", "actions", "keyboard", "shortcuts"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers", 
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
@@ -22,24 +23,81 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: User Interfaces",
     "Topic :: System :: Shells",
-    "Topic :: Terminals",
 ]
 dependencies = [
     "prompt-toolkit>=3.0.0",
-    "loguru>=0.6.0",
+    "loguru>=0.5.0",
 ]
 
 [project.optional-dependencies]
+test = [
+    "pytest>=6.0",
+    "pytest-asyncio>=0.18.0",
+    "pytest-cov>=3.0.0",
+]
 dev = [
-    "pytest>=7.0.0",
-    "pytest-asyncio>=0.21.0",
+    "black>=22.0.0",
+    "isort>=5.0.0",
+    "flake8>=4.0.0",
+    "mypy>=0.991",
+    "build>=0.8.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/bassmanitram/repl-toolkit"
+Documentation = "https://repl-toolkit.readthedocs.io/"
+Repository = "https://github.com/bassmanitram/repl-toolkit.git"
+"Bug Tracker" = "https://github.com/bassmanitram/repl-toolkit/issues"
+
+[tool.setuptools.packages.find]
+include = ["repl_toolkit*"]
+
 [tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-asyncio_mode = "strict"
+testpaths = ["repl_toolkit/tests"]
+asyncio_mode = "auto"
+addopts = "--cov=repl_toolkit --cov-report=html --cov-report=term-missing"
+
+[tool.coverage.run]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.black]
+line-length = 100
+target-version = ['py38']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
