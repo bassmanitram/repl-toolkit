@@ -3,6 +3,7 @@ Tests for AsyncREPL with action support and late backend binding.
 """
 
 import pytest
+from prompt_toolkit.key_binding import KeyBindings
 import asyncio
 from unittest.mock import Mock, AsyncMock, patch
 from pathlib import Path
@@ -354,3 +355,22 @@ class TestLateBackendBinding:
         context = ActionContext(registry=action_registry, backend=self.backend, triggered_by="test")
         action_registry.execute_action("test", context)
         assert executed == [True]  # Backend available
+
+class TestAsyncREPLEdgeCases:
+    """Test edge cases in AsyncREPL."""
+    
+    def test_register_shortcuts_without_key_map(self):
+        """Test registering shortcuts when action_registry has no key_map."""
+        # Create a mock registry without key_map attribute
+        class MockRegistry:
+            pass
+        
+        mock_registry = MockRegistry()
+        repl = AsyncREPL(action_registry=mock_registry)
+        
+        # This should not raise - it should handle missing key_map gracefully
+        bindings = KeyBindings()
+        repl._register_action_shortcuts(bindings)
+        
+        # Should have no bindings registered
+        assert len(bindings.bindings) == 0

@@ -230,6 +230,8 @@ Feature requests are welcome! Please:
 - Maintain a welcoming environment
 - Follow the project's coding standards
 
+For code of conduct enforcement, contact: martin.j.bartlett@gmail.com
+
 ## Development Tips
 
 ### Running Examples
@@ -269,7 +271,7 @@ python examples/headless_usage.py --demo
 If you have questions about contributing, feel free to:
 
 - Open an issue for discussion
-- Contact the maintainers
+- Contact the maintainers at martin.j.bartlett@gmail.com
 - Check existing documentation and examples
 
 Thank you for contributing to REPL Toolkit!

@@ -5,7 +5,7 @@ from loguru import logger
 
 from .action import ActionContext
 
-def shell_command(context: ActionContext) -> None:
+def shell_command(context: ActionContext) -> None:  # pragma: no cover
     """Built-in shell command handler."""
     logger.trace("shell_command() entry")
     

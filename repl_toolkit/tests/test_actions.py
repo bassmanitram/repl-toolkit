@@ -428,3 +428,26 @@ class TestActionHandlerProtocol:
         assert isinstance(actions, list)
         assert len(actions) > 0
         assert "show_help" in actions
+
+class TestActionValidationExtended:
+    """Additional validation tests for Action."""
+    
+    def test_empty_category_validation(self):
+        """Test that empty category raises ValueError."""
+        with pytest.raises(ValueError, match="category cannot be empty"):
+            Action(
+                name="test",
+                description="Test",
+                category="",  # Empty category
+                handler=lambda ctx: None
+            )
+    
+    def test_empty_string_handler_validation(self):
+        """Test that empty string handler raises ValueError."""
+        with pytest.raises(ValueError, match="handler cannot be empty string"):
+            Action(
+                name="test",
+                description="Test",
+                category="Test",
+                handler=""  # Empty string handler
+            )

@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
-    {name = "REPL Toolkit Contributors"}
+    {name = "REPL Toolkit Contributors", email = "martin.j.bartlett@gmail.com"}
 ]
 keywords = ["repl", "cli", "interactive", "chat", "toolkit", "actions", "keyboard", "shortcuts"]
 classifiers = [
@@ -44,6 +44,7 @@ dev = [
     "isort>=5.0.0",
     "flake8>=4.0.0",
     "mypy>=0.991",
+    "build>=0.8.0",
 ]
 
 [project.urls]
@@ -59,6 +60,24 @@ include = ["repl_toolkit*"]
 testpaths = ["repl_toolkit/tests"]
 asyncio_mode = "auto"
 addopts = "--cov=repl_toolkit --cov-report=html --cov-report=term-missing"
+
+[tool.coverage.run]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
 
 [tool.black]
 line-length = 100

@@ -1,5 +1,7 @@
 # REPL Toolkit
 
+[![PyPI version](https://badge.fury.io/py/repl-toolkit.svg)](https://badge.fury.io/py/repl-toolkit)
+
 A Python toolkit for building interactive REPL and headless interfaces with support for both commands and keyboard shortcuts, featuring late backend binding for resource context scenarios.
 
 ## Key Features
@@ -414,6 +416,41 @@ async def main():
 asyncio.run(main())
 ```
 
+## Development
+
+### Setup Development Environment
+
+```bash
+git clone https://github.com/bassmanitram/repl-toolkit.git
+cd repl-toolkit
+pip install -e ".[dev,test]"
+```
+
+### Run Tests
+
+```bash
+pytest
+```
+
+### Run Tests with Coverage
+
+```bash
+pytest --cov=repl_toolkit --cov-report=html
+```
+
+### Code Formatting
+
+```bash
+black repl_toolkit/
+isort repl_toolkit/
+```
+
+### Type Checking
+
+```bash
+mypy repl_toolkit/
+```
+
 ## Testing
 
 Run the comprehensive test suite:
@@ -537,49 +574,24 @@ class ActionHandler(Protocol):
     def list_actions(self) -> List[str]: ...
 ```
 
-## Contributing
-
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-### Development Setup
-
-```bash
-# Clone repository
-git clone https://github.com/bassmanitram/repl-toolkit.git
-cd repl-toolkit
-
-# Create development environment
-python -m venv venv
-source venv/bin/activate  # or `venv\Scripts\activate` on Windows
-
-# Install dependencies
-pip install -e ".[dev,test]"
-
-# Run tests
-pytest
-
-# Run examples
-python examples/basic_usage.py
-python examples/advanced_usage.py
-```
-
-### Code Quality
-
-```bash
-# Format code
-black repl_toolkit/
-isort repl_toolkit/
-
-# Lint
-flake8 repl_toolkit/
-
-# Type check
-mypy repl_toolkit/
-```
-
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+MIT License. See LICENSE file for details.
+
+## Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines and submit pull requests to the [main repository](https://github.com/bassmanitram/repl-toolkit).
+
+## Links
+
+- **GitHub Repository**: https://github.com/bassmanitram/repl-toolkit
+- **PyPI Package**: https://pypi.org/project/repl-toolkit/
+- **Documentation**: https://repl-toolkit.readthedocs.io/
+- **Issue Tracker**: https://github.com/bassmanitram/repl-toolkit/issues
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history and changes.
 
 ## Acknowledgments
 
