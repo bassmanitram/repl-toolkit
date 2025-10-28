@@ -44,7 +44,8 @@ class AsyncREPL:
         action_registry: Optional[ActionHandler] = None,
         completer: Optional[Completer] = None,
         prompt_string: Optional[str] = None,
-        history_path: Optional[Path] = None
+        history_path: Optional[Path] = None,
+        **kwargs,
     ):
         """
         Initialize the async REPL interface.
@@ -64,10 +65,12 @@ class AsyncREPL:
         self.prompt_string = HTML(prompt_string or "User: ")
         self.action_registry = action_registry or ActionRegistry()
         self.session = PromptSession(
+            message=self.prompt_string,
             history=self._create_history(history_path),
             key_bindings=self._create_key_bindings(),
             multiline=True,
             completer=completer,
+            **kwargs,
         )
         self.main_app = self.session.app
         
@@ -246,7 +249,7 @@ class AsyncREPL:
 
         while True:
             try:
-                user_input = await self.session.prompt_async(self.prompt_string)
+                user_input = await self.session.prompt_async()
                 if self._should_exit(user_input):
                     break
                 if not user_input.strip():
@@ -344,6 +347,7 @@ async def run_async_repl(  # pragma: no cover
     initial_message: Optional[str] = None,
     prompt_string: Optional[str] = None,
     history_path: Optional[Path] = None,
+    **kwargs,
 ):
     """
     Convenience function to create and run an AsyncREPL with action support.
@@ -361,7 +365,7 @@ async def run_async_repl(  # pragma: no cover
     """
     logger.trace("run_async_repl() entry")
     
-    repl = AsyncREPL(action_registry, completer, prompt_string, history_path)
+    repl = AsyncREPL(action_registry, completer, prompt_string, history_path, **kwargs)
     await repl.run(backend, initial_message)
     
     logger.trace("run_async_repl() exit")
