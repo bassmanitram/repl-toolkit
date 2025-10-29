@@ -598,3 +598,109 @@ See [CHANGELOG.md](CHANGELOG.md) for version history and changes.
 - Built on [prompt-toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit) for terminal handling
 - Logging by [loguru](https://github.com/Delgan/loguru) for structured logs
 - Inspired by modern CLI tools and REPL interfaces
+
+## Formatting Utilities
+
+REPL Toolkit includes utilities for automatically detecting and applying formatted text (HTML or ANSI) without needing to explicitly wrap text in format types.
+
+### Auto-Format Detection
+
+The formatting utilities can automatically detect whether text contains HTML tags, ANSI escape codes, or is plain text:
+
+```python
+from repl_toolkit import detect_format_type, auto_format, print_auto_formatted
+
+# Detect format type
+detect_format_type("<b>Bold</b>")  # Returns: 'html'
+detect_format_type("\x1b[1mBold\x1b[0m")  # Returns: 'ansi'
+detect_format_type("Plain text")  # Returns: 'plain'
+
+# Auto-format and print
+print_auto_formatted("<b>Bold HTML</b>")  # Automatically applies HTML formatting
+print_auto_formatted("\x1b[1mBold ANSI\x1b[0m")  # Automatically applies ANSI formatting
+print_auto_formatted("Plain text")  # Prints as-is
+```
+
+### Creating Auto-Printers
+
+The `create_auto_printer()` function creates a printer that can be used as a drop-in replacement for `print()` with automatic format detection:
+
+```python
+from repl_toolkit import create_auto_printer
+
+# Create a printer
+printer = create_auto_printer()
+
+# Use it like print()
+printer("<b>Bold text</b>")  # HTML formatting applied
+printer("\x1b[1mANSI bold\x1b[0m")  # ANSI formatting applied
+printer("Plain text")  # No formatting
+
+# Works with all print() parameters
+printer("<b>Prefix:</b> ", end="", flush=True)
+printer("Hello world\n")
+```
+
+### Integration with Callback Handlers
+
+The auto-printer is particularly useful for integrating with callback handlers from other libraries:
+
+```python
+from repl_toolkit import create_auto_printer
+from some_library import CallbackHandler
+
+# Create handler with auto-formatting printer
+handler = CallbackHandler(
+    response_prefix="<b><darkcyan>🤖 Assistant:</darkcyan></b> ",
+    printer=create_auto_printer()  # Automatically formats HTML tags
+)
+
+# The response_prefix will be properly formatted without needing
+# to explicitly wrap it in HTML() or ANSI()
+```
+
+### Format Detection Rules
+
+The auto-detection uses the following rules:
+
+1. **ANSI Detection**: Looks for ANSI escape codes (`\x1b[...m`)
+   - Pattern: `\x1b\[[0-9;]*m`
+   - Examples: `\x1b[1m`, `\x1b[31;1m`
+
+2. **HTML Detection**: Looks for HTML-like tags
+   - Pattern: `</?[a-zA-Z][a-zA-Z0-9]*\s*/?>`
+   - Examples: `<b>`, `</b>`, `<darkcyan>`, `<tag/>`
+   - Avoids false positives: `a < b`, `<123>`, `<_tag>`
+
+3. **Plain Text**: Everything else
+
+### API Reference
+
+#### `detect_format_type(text: str) -> str`
+Detect the format type of a text string.
+
+**Returns**: `'ansi'`, `'html'`, or `'plain'`
+
+#### `auto_format(text: str)`
+Auto-detect format type and return appropriate formatted text object.
+
+**Returns**: `HTML`, `ANSI`, or `str` object
+
+#### `print_auto_formatted(text: str, **kwargs) -> None`
+Print text with auto-detected formatting.
+
+**Parameters**: Same as `print_formatted_text()` from prompt_toolkit
+
+#### `create_auto_printer() -> Callable`
+Create a printer function with auto-format detection.
+
+**Returns**: Callable with signature `printer(text: str, **kwargs)`
+
+### Example
+
+See `examples/formatting_demo.py` for a complete demonstration of the formatting utilities.
+
+```bash
+python examples/formatting_demo.py
+```
+

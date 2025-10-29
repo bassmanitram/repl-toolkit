@@ -6,7 +6,7 @@ executing actions that can be triggered through multiple interaction methods.
 """
 
 import importlib
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional
 from loguru import logger
 
 from .shell import shell_command

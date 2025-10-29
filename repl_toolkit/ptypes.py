@@ -5,9 +5,10 @@ Defines the interface contracts that backends and handlers must implement
 for compatibility with the REPL toolkit.
 """
 
-from typing import Protocol, runtime_checkable, Optional, List
-from pathlib import Path
+from typing import Protocol, runtime_checkable, List, TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from .actions.action import ActionContext # Avoid circular import
 
 @runtime_checkable
 class AsyncBackend(Protocol):
