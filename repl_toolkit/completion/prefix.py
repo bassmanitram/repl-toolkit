@@ -3,7 +3,7 @@ Prefix-based string completer.
 """
 
 import re
-from typing import Iterable, Optional
+from typing import Iterable, List, Optional
 
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.document import Document
@@ -40,7 +40,7 @@ class PrefixCompleter(Completer):
         >>> completer = PrefixCompleter(['SELECT', 'FROM', 'WHERE'], prefix=None)
     """
 
-    def __init__(self, words: list[str], prefix: Optional[str] = None, ignore_case: bool = True):
+    def __init__(self, words: List[str], prefix: Optional[str] = None, ignore_case: bool = True):
         """Initialize the completer."""
         self.prefix = prefix
         self.ignore_case = ignore_case

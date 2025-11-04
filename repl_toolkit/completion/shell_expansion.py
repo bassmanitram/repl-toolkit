@@ -5,7 +5,7 @@ Environment variable and shell command expansion completer.
 import os
 import re
 import subprocess
-from typing import Iterable, Optional
+from typing import Iterable, List, Optional
 
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.document import Document
@@ -167,7 +167,7 @@ class ShellExpansionCompleter(Completer):
         """
         return output.strip()
 
-    def filter_lines(self, lines: list[str]) -> list[str]:
+    def filter_lines(self, lines: List[str]) -> List[str]:
         """
         Filter lines from command output.
 
