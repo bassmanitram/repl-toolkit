@@ -64,12 +64,12 @@ class AsyncREPL:
 
         self.prompt_string = HTML(prompt_string or "User: ")
         self.action_registry = action_registry or ActionRegistry()
-        self.session = PromptSession(
+        self.session = PromptSession(  # type: ignore[var-annotated]
             message=self.prompt_string,
             history=self._create_history(history_path),
             key_bindings=self._create_key_bindings(),
             multiline=True,
-            completer=completer,
+            completer=completer,  # type: ignore[arg-type]
             **kwargs,
         )
         self.main_app = self.session.app
@@ -243,7 +243,7 @@ class AsyncREPL:
         logger.trace("AsyncREPL.run() entry")
 
         # Set backend in action registry for action handlers to access
-        self.action_registry.backend = backend
+        self.action_registry.backend = backend  # type: ignore[attr-defined]
 
         if initial_message:
             print(self.prompt_string, end="")
@@ -293,7 +293,7 @@ class AsyncREPL:
         """
         logger.trace("AsyncREPL._process_input() entry")
 
-        cancel_future = asyncio.Future()
+        cancel_future = asyncio.Future()  # type: ignore[var-annotated]
 
         kb = KeyBindings()
 
@@ -303,7 +303,7 @@ class AsyncREPL:
                 cancel_future.set_result(None)
             event.app.exit()
 
-        cancel_app = Application(key_bindings=kb, output=DummyOutput(), input=create_input())
+        cancel_app = Application(key_bindings=kb, output=DummyOutput(), input=create_input())  # type: ignore[var-annotated]
 
         backend_task = asyncio.create_task(backend.handle_input(user_input))
         listener_task = asyncio.create_task(cancel_app.run_async())

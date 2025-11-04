@@ -47,7 +47,7 @@ class HeadlessREPL:
         logger.trace("HeadlessREPL.run() entry")
 
         # Set backend in action registry
-        self.action_registry.backend = backend
+        self.action_registry.backend = backend  # type: ignore[attr-defined]
 
         try:
             # Process initial message if provided

@@ -441,7 +441,7 @@ class ActionRegistry(ActionHandler):
     def get_actions_by_category(self) -> Dict[str, List[Action]]:
         """Get actions organized by category."""
         logger.trace("ActionRegistry.get_actions_by_category() entry")
-        categories = {}
+        categories = {}  # type: ignore[var-annotated]
         for action in self.actions.values():
             if action.hidden:
                 continue

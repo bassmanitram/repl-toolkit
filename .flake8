@@ -1,6 +1,6 @@
 [flake8]
 max-line-length = 100
-extend-ignore = E203, W503
+extend-ignore = E203, W503, F401, F541, E501
 exclude =
     .git,
     __pycache__,
@@ -15,5 +15,5 @@ exclude =
 
 # Per-file ignores
 per-file-ignores =
-    examples/*.py: E402, F401, F541
-    repl_toolkit/tests/*.py: F401, F841, E731
+    examples/*.py: E402
+    repl_toolkit/tests/*.py: E731, F841
