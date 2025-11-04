@@ -34,7 +34,7 @@ class TestAsyncREPL:
         self.backend = MockBackend()
         self.action_registry = ActionRegistry()
 
-    def test_repl_initialization(self):
+    def test_repl_initialization(self, mock_terminal_for_repl):
         """Test REPL initialization without backend."""
         repl = AsyncREPL()
 
@@ -44,14 +44,14 @@ class TestAsyncREPL:
         # Backend not set until run() is called
         assert repl.action_registry.backend is None
 
-    def test_repl_with_custom_registry(self):
+    def test_repl_with_custom_registry(self, mock_terminal_for_repl):
         """Test REPL with custom action registry."""
         custom_registry = ActionRegistry()
         repl = AsyncREPL(action_registry=custom_registry)
 
         assert repl.action_registry is custom_registry
 
-    def test_repl_with_history(self):
+    def test_repl_with_history(self, mock_terminal_for_repl):
         """Test REPL with history file."""
         history_path = Path("/tmp/test_history.txt")
         repl = AsyncREPL(history_path=history_path)
@@ -59,7 +59,7 @@ class TestAsyncREPL:
         # Should not raise error during initialization
         assert repl.session.history is not None
 
-    def test_key_parsing(self):
+    def test_key_parsing(self, mock_terminal_for_repl):
         """Test key combination parsing."""
         repl = AsyncREPL()
 
@@ -74,7 +74,7 @@ class TestAsyncREPL:
         # Test single keys
         assert repl._parse_key_combination("enter") == ("enter",)
 
-    def test_should_exit(self):
+    def test_should_exit(self, mock_terminal_for_repl):
         """Test exit condition detection."""
         repl = AsyncREPL()
 
@@ -84,7 +84,7 @@ class TestAsyncREPL:
         assert not repl._should_exit("/help")
         assert not repl._should_exit("regular input")
 
-    def test_backend_injection_during_run(self):
+    def test_backend_injection_during_run(self, mock_terminal_for_repl):
         """Test backend injection into action registry during run."""
         repl = AsyncREPL()
 
@@ -195,7 +195,7 @@ class TestREPLActionIntegration:
         )
         self.action_registry.register_action(test_action)
 
-    def test_action_registry_integration(self):
+    def test_action_registry_integration(self, mock_terminal_for_repl):
         """Test that REPL properly integrates with action registry."""
         repl = AsyncREPL(action_registry=self.action_registry)
 
@@ -210,7 +210,7 @@ class TestREPLActionIntegration:
         # Backend not set until run() is called
         assert repl.action_registry.backend is None
 
-    def test_action_registry_without_backend(self):
+    def test_action_registry_without_backend(self, mock_terminal_for_repl):
         """Test REPL with action registry that has no backend initially."""
         registry_without_backend = ActionRegistry()  # No backend
         repl = AsyncREPL(action_registry=registry_without_backend)
@@ -219,7 +219,7 @@ class TestREPLActionIntegration:
         assert repl.action_registry.backend is None
         assert repl.action_registry is registry_without_backend
 
-    def test_backend_injection_during_execution(self):
+    def test_backend_injection_during_execution(self, mock_terminal_for_repl):
         """Test that backend gets injected when needed."""
         repl = AsyncREPL(action_registry=self.action_registry)
 
@@ -235,7 +235,7 @@ class TestREPLActionIntegration:
         assert triggered_by == "command"
         assert args == ["arg1", "arg2"]
 
-    def test_shortcut_execution_integration(self):
+    def test_shortcut_execution_integration(self, mock_terminal_for_repl):
         """Test shortcut execution through REPL."""
         repl = AsyncREPL(action_registry=self.action_registry)
 
@@ -259,7 +259,7 @@ class TestErrorHandling:
         """Set up test fixtures."""
         self.backend = MockBackend()
 
-    def test_backend_error_handling(self):
+    def test_backend_error_handling(self, mock_terminal_for_repl):
         """Test handling of backend errors."""
         self.backend.should_succeed = False
         repl = AsyncREPL()
@@ -267,7 +267,7 @@ class TestErrorHandling:
         # Should not raise error during initialization (no backend yet)
         assert repl.action_registry is not None
 
-    def test_invalid_key_combination(self):
+    def test_invalid_key_combination(self, mock_terminal_for_repl):
         """Test handling of invalid key combinations."""
         repl = AsyncREPL()
 
@@ -303,7 +303,7 @@ class TestLateBackendBinding:
         """Set up test fixtures."""
         self.backend = MockBackend()
 
-    def test_repl_creation_without_backend(self):
+    def test_repl_creation_without_backend(self, mock_terminal_for_repl):
         """Test that REPL can be created without backend."""
         repl = AsyncREPL()
 
@@ -312,7 +312,7 @@ class TestLateBackendBinding:
         assert repl.action_registry is not None
         assert repl.action_registry.backend is None
 
-    def test_backend_injection_pattern(self):
+    def test_backend_injection_pattern(self, mock_terminal_for_repl):
         """Test the backend injection pattern."""
         # Create REPL without backend
         action_registry = ActionRegistry()
@@ -327,7 +327,7 @@ class TestLateBackendBinding:
         # Now backend is available
         assert action_registry.backend is self.backend
 
-    def test_action_execution_with_late_backend(self):
+    def test_action_execution_with_late_backend(self, mock_terminal_for_repl):
         """Test that actions work with late backend binding."""
         executed = []
 
@@ -363,7 +363,7 @@ class TestLateBackendBinding:
 class TestAsyncREPLEdgeCases:
     """Test edge cases in AsyncREPL."""
 
-    def test_register_shortcuts_without_key_map(self):
+    def test_register_shortcuts_without_key_map(self, mock_terminal_for_repl):
         """Test registering shortcuts when action_registry has no key_map."""
 
         # Create a mock registry without key_map attribute

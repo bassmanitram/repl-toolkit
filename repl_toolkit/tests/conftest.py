@@ -3,20 +3,25 @@ Pytest configuration and fixtures for repl-toolkit tests.
 """
 
 import sys
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock
 
 import pytest
 from prompt_toolkit.input import DummyInput
 from prompt_toolkit.output import DummyOutput
 
 
-@pytest.fixture(autouse=True)
-def mock_terminal_for_tests(monkeypatch):
+@pytest.fixture
+def mock_terminal_for_repl(monkeypatch):
     """
-    Automatically mock terminal I/O for all tests to enable cross-platform testing.
+    Mock terminal I/O specifically for REPL tests that need it.
 
-    This fixture ensures tests work on Windows, Linux, macOS, and in CI environments
-    without requiring an actual terminal.
+    This fixture should be explicitly requested by tests that create AsyncREPL or
+    similar objects that require terminal access.
+
+    Usage:
+        def test_something(mock_terminal_for_repl):
+            # Terminal is now mocked
+            repl = AsyncREPL()
     """
 
     # Mock prompt_toolkit's create_output to return DummyOutput
@@ -55,36 +60,6 @@ def dummy_input():
 def dummy_output():
     """Provide a DummyOutput for tests that need to capture output."""
     return DummyOutput()
-
-
-@pytest.fixture
-def mock_prompt_session(monkeypatch, dummy_input, dummy_output):
-    """
-    Mock PromptSession to work without a real terminal.
-
-    This fixture is useful for tests that specifically need to control
-    PromptSession behavior.
-    """
-    original_init = None
-
-    try:
-        from prompt_toolkit.shortcuts.prompt import PromptSession
-
-        original_init = PromptSession.__init__
-    except ImportError:
-        pass
-
-    def mock_init(self, *args, **kwargs):
-        # Override input/output to use dummy versions
-        kwargs["input"] = dummy_input
-        kwargs["output"] = dummy_output
-        if original_init:
-            original_init(self, *args, **kwargs)
-
-    if original_init:
-        monkeypatch.setattr("prompt_toolkit.shortcuts.prompt.PromptSession.__init__", mock_init)
-
-    return Mock()
 
 
 @pytest.fixture
