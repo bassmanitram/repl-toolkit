@@ -3,6 +3,7 @@ Tests for completion utilities.
 """
 
 import os
+import sys
 from unittest.mock import Mock, patch
 
 import pytest
@@ -70,7 +71,7 @@ class TestShellExpansionCompleter:
 
     def test_environment_variable_not_found(self):
         """Test behavior when environment variable doesn't exist."""
-        document = Document(text="${NONEXISTENT_VAR}", cursor_position=18)
+        document = Document(text="${NONEXISTENT_VAR}", cursor_position=16)
         completions = list(self.completer.get_completions(document, self.complete_event))
 
         # Should not offer completion for nonexistent variables
@@ -126,7 +127,7 @@ class TestShellExpansionCompleter:
 
     def test_command_execution_with_output_trimming(self):
         """Test that command output is trimmed."""
-        document = Document(text='$(echo "  spaces  ")', cursor_position=20)
+        document = Document(text='$(printf "  spaces  ")', cursor_position=22)
         completions = list(self.completer.get_completions(document, self.complete_event))
 
         assert len(completions) == 1
@@ -577,7 +578,7 @@ class TestShellExpansionCompleterLimits:
 
         # Command with long output
         long_text = "A" * 100
-        cmd = f'echo "{long_text}"'
+        cmd = f'printf "{long_text}"'
         document = Document(text=f"$({cmd})", cursor_position=len(f"$({cmd})"))
 
         completions = list(completer.get_completions(document, self.complete_event))
@@ -647,7 +648,7 @@ class TestShellExpansionCompleterLimits:
         completer = ShellExpansionCompleter(max_lines=10, max_display_length=50)
 
         # Short command output
-        document = Document(text='$(echo "short")', cursor_position=15)
+        document = Document(text='$(printf "short")', cursor_position=16)
         completions = list(completer.get_completions(document, self.complete_event))
 
         assert len(completions) == 1
