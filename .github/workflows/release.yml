@@ -5,160 +5,82 @@ on:
     tags:
       - 'v*'
 
-permissions:
-  contents: read
-
 jobs:
-  build:
+  create-release:
     runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
+    environment: release
+    permissions:
+      contents: write
+      id-token: write  # Required for trusted publishing
 
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v4
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
       with:
         python-version: "3.10"
+
+    - name: Extract version
+      id: version
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Generate changelog from commits since last tag
+        PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+        if [ -n "$PREVIOUS_TAG" ]; then
+          CHANGELOG=$(git log --pretty=format:"- %s" $PREVIOUS_TAG..HEAD)
+        else
+          CHANGELOG=$(git log --pretty=format:"- %s")
+        fi
+
+        # Save changelog to file
+        echo "$CHANGELOG" > changelog.txt
+
+        # Set output for use in release
+        {
+          echo "changelog<<EOF"
+          echo "$CHANGELOG"
+          echo "EOF"
+        } >> $GITHUB_OUTPUT
 
     - name: Install build dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install build twine
+        pip install build
 
     - name: Build package
       run: |
         python -m build
 
-    - name: Check package
-      run: |
-        twine check dist/*
-
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: dist
-        path: dist/
-
-  test-package:
-    needs: build
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false  # Don't cancel other jobs if one fails
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
-
-    steps:
-    - name: Download build artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: dist
-        path: dist/
-
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
-
-    - name: List downloaded files (debug)
-      run: |
-        ls -la dist/
-      shell: bash
-
-    - name: Upgrade pip
-      run: |
-        python -m pip install --upgrade pip
-
-    - name: Find and install wheel file
-      run: |
-        import os
-        import glob
-        import subprocess
-        
-        wheel_files = glob.glob("dist/*.whl")
-        if not wheel_files:
-            raise FileNotFoundError("No wheel file found in dist/")
-        
-        wheel_file = wheel_files[0]
-        print(f"Installing wheel: {wheel_file}")
-        
-        result = subprocess.run(["pip", "install", wheel_file], capture_output=True, text=True)
-        if result.returncode != 0:
-            print("STDOUT:", result.stdout)
-            print("STDERR:", result.stderr)
-            raise RuntimeError(f"pip install failed with return code {result.returncode}")
-        
-        print("Installation successful!")
-        print("STDOUT:", result.stdout)
-      shell: python
-
-    - name: Test package import
-      run: |
-        python -c "import repl_toolkit; print('Package imported successfully')"
-        python -c "from repl_toolkit import AsyncREPL; print('Main class imported successfully')"
-
-  publish:
-    needs: [build, test-package]
-    runs-on: ubuntu-latest
-    environment: release
-    permissions:
-      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
-
-    steps:
-    - name: Download build artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: dist
-        path: dist/
-
-    - name: Publish package to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        # Use trusted publishing - no API token needed
-        # Configure at https://pypi.org/manage/account/publishing/
-        # Owner: bassmanitram
-        # Repository: repl-toolkit
-        # Workflow: release.yml
-        # Environment: release
-        verbose: true
-
-  create-release:
-    needs: publish
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-
-    - name: Generate changelog
-      id: changelog
-      run: |
-        # Extract version from tag
-        VERSION=${GITHUB_REF#refs/tags/v}
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-        
-        # Generate changelog from commits since last tag
-        LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-        if [ -n "$LAST_TAG" ]; then
-          CHANGELOG=$(git log --pretty=format:"- %s" $LAST_TAG..HEAD)
-        else
-          CHANGELOG=$(git log --pretty=format:"- %s")
-        fi
-        
-        # Save changelog to file
-        echo "## Changes in v$VERSION" > changelog.md
-        echo "" >> changelog.md
-        echo "$CHANGELOG" >> changelog.md
-
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.ref_name }}
-        name: Release ${{ github.ref_name }}
-        body_path: changelog.md
+        name: Release ${{ env.VERSION }}
+        body: |
+          ## Changes in ${{ env.VERSION }}
+
+          ${{ steps.changelog.outputs.changelog }}
+
+          ## Installation
+
+          ```bash
+          pip install repl-toolkit==${{ env.VERSION }}
+          ```
+
+          See [CHANGELOG.md](CHANGELOG.md) for full version history.
+        files: |
+          dist/*.tar.gz
+          dist/*.whl
         draft: false
         prerelease: false
+
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1

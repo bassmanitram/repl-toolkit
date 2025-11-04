@@ -9,17 +9,16 @@ by either typed commands (e.g., /help) or keyboard shortcuts (e.g., F1),
 providing a consistent and discoverable interface for users.
 """
 
-from .action import Action, ActionContext, ActionError, ActionValidationError, ActionExecutionError
+from .action import Action, ActionContext, ActionError, ActionExecutionError, ActionValidationError
 from .registry import ActionRegistry
 
 __all__ = [
     # Core action types
     "Action",
-    "ActionContext", 
+    "ActionContext",
     "ActionError",
     "ActionValidationError",
     "ActionExecutionError",
-    
     # Registry
     "ActionRegistry",
 ]

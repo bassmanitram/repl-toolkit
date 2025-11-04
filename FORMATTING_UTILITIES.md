@@ -2,16 +2,16 @@
 
 ## Overview
 
-REPL Toolkit now includes powerful formatting utilities that automatically detect and apply formatted text (HTML or ANSI) without requiring explicit wrapper types. This makes it easy to integrate with libraries that output formatted text.
+REPL Toolkit includes formatting utilities that automatically detect and apply formatted text (HTML or ANSI) without requiring explicit wrapper types. This integrates with libraries that output formatted text.
 
 ## Features
 
 - **Auto-Detection**: Automatically detects HTML tags, ANSI escape codes, or plain text
-- **No False Positives**: Smart detection avoids common edge cases like `a < b`
+- **No False Positives**: Detection avoids common edge cases like `a < b`
 - **Drop-in Replacement**: `create_auto_printer()` works like `print()`
 - **Flexible**: Supports HTML, ANSI, and plain text
 - **Efficient**: Pre-compiled regex patterns for performance
-- **Well-Tested**: Comprehensive test coverage
+- **Test Coverage**: Included test suite
 
 ## Quick Start
 
@@ -101,7 +101,7 @@ printer("Hello world\n")
 - `\033[1m` (octal escape)
 
 **Characteristics**:
-- Very specific pattern
+- Specific pattern
 - No false positives
 - Takes precedence over HTML
 
@@ -139,7 +139,7 @@ handler = CallbackHandler(
     printer=create_auto_printer()
 )
 
-# The response_prefix will be properly formatted
+# The response_prefix will be formatted
 # without needing to wrap it in HTML()
 ```
 
@@ -162,14 +162,14 @@ from repl_toolkit import create_auto_printer
 
 def my_callback_handler(response_prefix):
     printer = create_auto_printer()
-    
+
     def handler(data="", messageStop=False):
         if data:
             printer(response_prefix, end="", flush=True)
             printer(data, end="", flush=True)
         if messageStop:
             printer("\n")
-    
+
     return handler
 
 # Use it
@@ -197,7 +197,7 @@ Negligible overhead for typical use cases.
 
 ## Testing
 
-The formatting utilities have comprehensive test coverage:
+The formatting utilities have test coverage:
 
 ```bash
 # Run formatting tests
@@ -217,7 +217,7 @@ pytest
 
 ## Examples
 
-See `examples/formatting_demo.py` for a complete demonstration:
+See `examples/formatting_demo.py` for a demonstration:
 
 ```bash
 python examples/formatting_demo.py
@@ -272,7 +272,7 @@ print_auto_formatted(text)
 ```
 
 **Benefits**:
-- Proper HTML tag detection
+- HTML tag detection
 - ANSI support
 - No false positives on `a < b`
 
@@ -282,7 +282,7 @@ print_auto_formatted(text)
 
 **Problem**: Text with HTML tags prints literally
 
-**Solution**: Make sure you're using the auto-printer:
+**Solution**: Use the auto-printer:
 ```python
 from repl_toolkit import create_auto_printer
 
@@ -294,13 +294,13 @@ printer("<b>Bold</b>")  # Will format correctly
 
 **Problem**: Text like `a < b` being detected as HTML
 
-**Solution**: The detection is already smart about this. If you're seeing issues, please report them.
+**Solution**: The detection handles this case. If you encounter issues, please report them.
 
 ### ANSI Codes Not Working
 
 **Problem**: ANSI codes not being detected
 
-**Solution**: Make sure the escape codes are in the correct format:
+**Solution**: Verify the escape codes are in the correct format:
 ```python
 # Correct
 text = "\x1b[1mBold\x1b[0m"
@@ -314,7 +314,7 @@ text = "\\x1b[1mBold\\x1b[0m"
 
 ## Contributing
 
-Contributions to the formatting utilities are welcome! Please:
+Contributions to the formatting utilities are welcome:
 
 1. Add tests for new features
 2. Update documentation
@@ -327,12 +327,12 @@ MIT License - same as REPL Toolkit
 
 ## Changelog
 
-### Version 1.0.0
+### Version 1.2.0
 - Initial release of formatting utilities
 - Auto-detection for HTML, ANSI, and plain text
 - `detect_format_type()` function
 - `auto_format()` function
 - `print_auto_formatted()` function
 - `create_auto_printer()` function
-- Comprehensive test coverage
+- Test coverage
 - Documentation and examples

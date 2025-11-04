@@ -57,7 +57,7 @@ class MyBackend:
 class MyActions(ActionRegistry):
     def __init__(self):
         super().__init__()
-        
+
         # Add action with both command and shortcut
         self.register_action(
             name="save_data",
@@ -69,7 +69,7 @@ class MyActions(ActionRegistry):
             keys="ctrl-s",
             keys_description="Quick save"
         )
-    
+
     def _save_data(self, context):
         # Access backend through context
         backend = context.backend
@@ -82,7 +82,7 @@ class MyActions(ActionRegistry):
 async def main():
     actions = MyActions()
     backend = MyBackend()
-    
+
     await run_async_repl(
         backend=backend,
         action_registry=actions,
@@ -104,7 +104,7 @@ from repl_toolkit import AsyncREPL, ActionRegistry
 class DatabaseBackend:
     def __init__(self, db_connection):
         self.db = db_connection
-    
+
     async def handle_input(self, user_input: str) -> bool:
         # Use database connection
         result = await self.db.query(user_input)
@@ -115,7 +115,7 @@ async def main():
     # Create REPL without backend (backend not available yet)
     actions = ActionRegistry()
     repl = AsyncREPL(action_registry=actions)
-    
+
     # Backend only available within resource context
     async with get_database_connection() as db:
         backend = DatabaseBackend(db)
@@ -136,7 +136,7 @@ Users can now:
 
 Actions are the heart of the extension system. Each action can be triggered by:
 - **Commands**: Typed commands like `/help` or `/save filename`
-- **Keyboard Shortcuts**: Key combinations like `F1` or `Ctrl+S`  
+- **Keyboard Shortcuts**: Key combinations like `F1` or `Ctrl+S`
 - **Programmatic**: Direct execution in code
 
 ```python
@@ -157,7 +157,7 @@ action = Action(
 # Command-only action
 cmd_action = Action(
     name="command_only",
-    description="Command-only functionality",  
+    description="Command-only functionality",
     category="Commands",
     handler=cmd_handler,
     command="/cmdonly"
@@ -167,7 +167,7 @@ cmd_action = Action(
 key_action = Action(
     name="shortcut_only",
     description="Keyboard shortcut",
-    category="Shortcuts", 
+    category="Shortcuts",
     handler=key_handler,
     keys="ctrl-k",
     keys_description="Special shortcut"
@@ -185,18 +185,18 @@ class MyRegistry(ActionRegistry):
     def __init__(self):
         super().__init__()
         self._register_my_actions()
-    
+
     def _register_my_actions(self):
         # Command + shortcut
         self.register_action(
             name="action_name",
-            description="What it does", 
+            description="What it does",
             category="Category",
             handler=self._handler_method,
             command="/cmd",
             keys="F2"
         )
-    
+
     def _handler_method(self, context):
         # Access backend through context
         backend = context.backend
@@ -214,16 +214,16 @@ def my_handler(context: ActionContext):
     # Access the registry and backend
     registry = context.registry
     backend = context.backend  # Available after run() is called
-    
+
     # Different context based on trigger method
     if context.triggered_by == "command":
         args = context.args  # Command arguments
         print(f"Command args: {args}")
-        
+
     elif context.triggered_by == "shortcut":
         event = context.event  # Keyboard event
         print("Triggered by keyboard shortcut")
-        
+
     # Original user input (for commands)
     if context.user_input:
         print(f"Full input: {context.user_input}")
@@ -236,7 +236,7 @@ Every registry comes with built-in actions:
 | Action | Command | Shortcut | Description |
 |--------|---------|----------|-------------|
 | **Help** | `/help [action]` | `F1` | Show help for all actions or specific action |
-| **Shortcuts** | `/shortcuts` | - | List all keyboard shortcuts |  
+| **Shortcuts** | `/shortcuts` | - | List all keyboard shortcuts |
 | **Shell** | `/shell [cmd]` | - | Drop to interactive shell or run command |
 | **Exit** | `/exit` | - | Exit the application |
 | **Quit** | `/quit` | - | Quit the application |
@@ -250,7 +250,7 @@ The system supports rich keyboard shortcut definitions:
 keys="F1"          # F1
 keys="F12"         # F12
 
-# Modifier combinations  
+# Modifier combinations
 keys="ctrl-s"      # Ctrl+S
 keys="alt-h"       # Alt+H
 keys="shift-tab"   # Shift+Tab
@@ -278,13 +278,13 @@ class BatchBackend:
 
 async def main():
     backend = BatchBackend()
-    
+
     # Process initial message, then read from stdin
     success = await run_headless_mode(
         backend=backend,
         initial_message="Starting batch processing"
     )
-    
+
     return 0 if success else 1
 
 # Usage:
@@ -331,20 +331,20 @@ class MyBackend(AsyncBackend):
         # Process input, return success/failure
         return True
 
-# Action registries implement ActionHandler  
+# Action registries implement ActionHandler
 class MyActions(ActionHandler):
     def execute_action(self, action_name: str, context: ActionContext):
         # Execute action by name
         pass
-    
+
     def handle_command(self, command_string: str):
         # Handle command input
         pass
-    
+
     def validate_action(self, action_name: str) -> bool:
         # Check if action exists
         return action_name in self.actions
-    
+
     def list_actions(self) -> List[str]:
         # Return available actions
         return list(self.actions.keys())
@@ -381,7 +381,7 @@ from repl_toolkit import AsyncREPL, ActionRegistry, Action, ActionContext
 class AdvancedBackend:
     def __init__(self):
         self.data = []
-    
+
     async def handle_input(self, input: str) -> bool:
         self.data.append(input)
         print(f"Stored: {input} (Total: {len(self.data)})")
@@ -390,17 +390,17 @@ class AdvancedBackend:
 class AdvancedActions(ActionRegistry):
     def __init__(self):
         super().__init__()
-        
+
         # Statistics with both command and shortcut
         self.register_action(
             name="show_stats",
             description="Show data statistics",
-            category="Info", 
+            category="Info",
             handler=self._show_stats,
             command="/stats",
             keys="F3"
         )
-    
+
     def _show_stats(self, context):
         backend = context.backend
         count = len(backend.data) if backend else 0
@@ -409,7 +409,7 @@ class AdvancedActions(ActionRegistry):
 async def main():
     actions = AdvancedActions()
     backend = AdvancedBackend()
-    
+
     repl = AsyncREPL(action_registry=actions, prompt_string="Advanced: ")
     await repl.run(backend)
 
@@ -480,11 +480,11 @@ from repl_toolkit import ActionRegistry, Action, ActionContext
 def test_my_action():
     # Test action execution
     registry = ActionRegistry()
-    
+
     executed = []
     def test_handler(context):
         executed.append(context.triggered_by)
-    
+
     action = Action(
         name="test",
         description="Test action",
@@ -492,12 +492,12 @@ def test_my_action():
         handler=test_handler,
         command="/test"
     )
-    
+
     registry.register_action(action)
-    
+
     context = ActionContext(registry=registry)
     registry.execute_action("test", context)
-    
+
     assert executed == ["programmatic"]
 ```
 
@@ -515,7 +515,7 @@ class AsyncREPL:
         prompt_string: Optional[str] = None,
         history_path: Optional[Path] = None
     )
-    
+
     async def run(self, backend: AsyncBackend, initial_message: Optional[str] = None)
 ```
 
@@ -524,11 +524,11 @@ class AsyncREPL:
 class ActionRegistry(ActionHandler):
     def register_action(self, action: Action) -> None
     def register_action(self, name, description, category, handler, command=None, keys=None, **kwargs) -> None
-    
+
     def execute_action(self, action_name: str, context: ActionContext) -> None
     def handle_command(self, command_string: str, **kwargs) -> None
     def handle_shortcut(self, key_combo: str, event: Any) -> None
-    
+
     def validate_action(self, action_name: str) -> bool
     def list_actions(self) -> List[str]
     def get_actions_by_category(self) -> Dict[str, List[Action]]
@@ -703,4 +703,3 @@ See `examples/formatting_demo.py` for a complete demonstration of the formatting
 ```bash
 python examples/formatting_demo.py
 ```
-

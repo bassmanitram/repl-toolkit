@@ -108,7 +108,7 @@ from repl_toolkit import ActionRegistry, Action, ActionContext
 def test_action_registration():
     """Test that actions can be registered successfully."""
     registry = ActionRegistry()
-    
+
     action = Action(
         name="test_action",
         description="Test action",
@@ -116,7 +116,7 @@ def test_action_registration():
         handler=lambda ctx: None,
         command="/test"
     )
-    
+
     registry.register_action(action)
     assert registry.validate_action("test_action")
 
@@ -126,15 +126,15 @@ async def test_headless_processing():
     from repl_toolkit.headless_repl import HeadlessREPL
     from io import StringIO
     from unittest.mock import patch
-    
+
     backend = MockBackend()
     repl = HeadlessREPL()
-    
+
     stdin_input = "Line 1\nLine 2\n/send\n"
-    
+
     with patch('sys.stdin', StringIO(stdin_input)):
         await repl._stdin_loop(backend)
-    
+
     assert backend.inputs == ["Line 1\nLine 2"]
 ```
 

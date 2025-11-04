@@ -11,7 +11,7 @@ REPL Toolkit is built around the concept of **Actions** - a unified system that 
 ```
 AsyncREPL (User Interface)
     │
-    ├── ActionRegistry (Action Management) 
+    ├── ActionRegistry (Action Management)
     │   │
     │   ├── Action (Individual Actions)
     │   ├── ActionContext (Execution Context)
@@ -34,7 +34,7 @@ HeadlessREPL (Non-Interactive Interface)
 
 **Core Classes:**
 - `Action`: Dataclass defining individual actions with commands/shortcuts
-- `ActionContext`: Rich context passed to action handlers  
+- `ActionContext`: Rich context passed to action handlers
 - `ActionRegistry`: Central registry managing all actions
 - `ActionHandler`: Protocol for action registry implementations
 
@@ -97,15 +97,15 @@ class Action:
     description: str             # Human description
     category: str               # Organization category
     handler: Optional[Callable]  # Function to execute
-    
+
     # Command Binding (optional)
-    command: Optional[str]       # "/command" 
+    command: Optional[str]       # "/command"
     command_usage: Optional[str] # Usage description
-    
-    # Keyboard Binding (optional)  
+
+    # Keyboard Binding (optional)
     keys: Optional[str]          # "F1" or "ctrl-s"
     keys_description: Optional[str] # Shortcut description
-    
+
     # Metadata
     enabled: bool = True         # Enable/disable
     hidden: bool = False         # Hide from help
@@ -168,7 +168,7 @@ class ActionContext:
     args: List[str]              # Command arguments
     triggered_by: str            # "command"|"shortcut"|"programmatic"
     user_input: Optional[str]    # Original input string
-    
+
     # Headless mode extensions
     buffer: Optional[str] = None      # Current buffer content (headless)
     headless_mode: bool = False       # Headless mode flag
@@ -222,7 +222,7 @@ stdin: "Line 1\nLine 2\n/send\nLine 3\n"
 HeadlessREPL._stdin_loop() processes line by line
     ↓
 "Line 1" → Add to buffer
-"Line 2" → Add to buffer  
+"Line 2" → Add to buffer
 "/send" → Execute send: backend.handle_input("Line 1\nLine 2")
 "Line 3" → Add to buffer
 EOF → Execute send: backend.handle_input("Line 3")
@@ -260,7 +260,7 @@ class MyActionRegistry(ActionRegistry):
     def __init__(self):
         super().__init__()
         self._register_my_actions()
-    
+
     def _register_my_actions(self):
         self.register_action(
             name="custom_action",
@@ -270,7 +270,7 @@ class MyActionRegistry(ActionRegistry):
             command="/custom",
             keys="F9"
         )
-    
+
     def _custom_handler(self, context: ActionContext):
         # Access backend: context.backend
         # Access registry: context.registry
@@ -298,7 +298,7 @@ registry.register_action(Action(
 class MyBackend:
     def __init__(self):
         self.data = {}
-    
+
     async def handle_input(self, user_input: str) -> bool:
         # Process input
         self.data['last_input'] = user_input
@@ -336,7 +336,7 @@ def headless_aware_action(context: ActionContext):
 class MockBackend:
     def __init__(self):
         self.inputs = []
-    
+
     async def handle_input(self, input: str) -> bool:
         self.inputs.append(input)
         return True
@@ -345,7 +345,7 @@ class MockBackend:
 def test_action():
     registry = ActionRegistry()
     backend = MockBackend()
-    
+
     context = ActionContext(registry=registry, backend=backend)
     registry.execute_action("show_help", context)
 ```
@@ -356,7 +356,7 @@ def test_action():
 # Test action registration
 def test_register_action():
     registry = ActionRegistry()
-    action = Action(name="test", description="Test", category="Test", 
+    action = Action(name="test", description="Test", category="Test",
                    handler=lambda ctx: None, command="/test")
     registry.register_action(action)
     assert registry.validate_action("test")
@@ -367,7 +367,7 @@ def test_command_handling():
     registry.handle_command("/help")
     # Verify expected behavior
 
-# Test shortcut handling  
+# Test shortcut handling
 def test_shortcut_handling():
     registry = ActionRegistry()
     mock_event = Mock()
@@ -382,12 +382,12 @@ def test_shortcut_handling():
 async def test_headless_processing():
     backend = MockBackend()
     stdin_input = "Line 1\nLine 2\n/send\n"
-    
+
     repl = HeadlessREPL()
-    
+
     with patch('sys.stdin', StringIO(stdin_input)):
         await repl._stdin_loop(backend)
-    
+
     assert backend.inputs == ["Line 1\nLine 2"]
 ```
 
@@ -438,7 +438,7 @@ async def test_headless_processing():
 The protocol-based design enables:
 
 - **Custom action types**: New action patterns
-- **Alternative UIs**: Different REPL implementations  
+- **Alternative UIs**: Different REPL implementations
 - **Backend adapters**: Integration with external systems
 - **Completion providers**: Custom tab completion
 

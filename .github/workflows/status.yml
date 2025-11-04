@@ -1,0 +1,72 @@
+name: Project Status
+
+on:
+  schedule:
+    # Run daily at 8 AM UTC
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.10"
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev,test]"
+
+    - name: Run comprehensive tests
+      run: |
+        pytest repl_toolkit/tests/ -v --cov=repl_toolkit --cov-report=term-missing
+
+    - name: Check code quality
+      run: |
+        black --check repl_toolkit/ examples/
+        isort --check-only repl_toolkit/ examples/
+        mypy repl_toolkit/
+
+    - name: Test examples
+      run: |
+        cd examples
+        python basic_usage.py --help
+        python advanced_usage.py --help
+
+    - name: Package health check
+      run: |
+        python -m build
+        twine check dist/*
+        pip install dist/*.whl
+        python -c "
+        import repl_toolkit
+        print(f'Package version: {repl_toolkit.__version__}')
+        print('All imports successful')
+        "
+
+    - name: Generate status report
+      run: |
+        echo "# Project Status Report" > status-report.md
+        echo "Generated: $(date)" >> status-report.md
+        echo "" >> status-report.md
+        echo "## Test Results" >> status-report.md
+        pytest repl_toolkit/tests/ --tb=no -q >> status-report.md 2>&1 || true
+        echo "" >> status-report.md
+        echo "## Package Information" >> status-report.md
+        python -c "
+        import repl_toolkit
+        print(f'Version: {repl_toolkit.__version__}')
+        print(f'Available functions: {len([x for x in dir(repl_toolkit) if not x.startswith(\"_\")])}')
+        " >> status-report.md
+
+    - name: Upload status report
+      uses: actions/upload-artifact@v5
+      with:
+        name: status-report
+        path: status-report.md
