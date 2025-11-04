@@ -350,6 +350,17 @@ class MyActions(ActionHandler):
         return list(self.actions.keys())
 ```
 
+## Completion Utilities
+
+REPL Toolkit includes powerful completion utilities for building sophisticated command-line interfaces with autocompletion support.
+
+For detailed documentation on completion features including:
+- **PrefixCompleter**: Slash commands, at-mentions, hashtags with intelligent prefix detection
+- **ShellExpansionCompleter**: Environment variable and shell command expansion
+- Customization patterns and extensibility
+
+See [repl_toolkit/completion/README.md](repl_toolkit/completion/README.md) for complete documentation and examples.
+
 ## Examples
 
 ### Basic Example
