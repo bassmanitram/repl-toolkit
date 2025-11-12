@@ -241,6 +241,178 @@ Every registry comes with built-in actions:
 | **Exit** | `/exit` | - | Exit the application |
 | **Quit** | `/quit` | - | Quit the application |
 
+## Image Paste Support
+
+REPL Toolkit includes built-in support for pasting images from the clipboard, allowing backends to receive both text and image data.
+
+### Quick Start
+
+```python
+import asyncio
+from repl_toolkit import AsyncREPL, ImageData
+
+class ImageBackend:
+    async def handle_input(self, user_input: str, images=None) -> bool:
+        # Process text with image placeholders
+        print(f"Text: {user_input}")
+
+        # Process images if present
+        if images:
+            for img_id, img_data in images.items():
+                print(f"  {img_id}: {img_data.media_type}, {len(img_data.data)} bytes")
+
+        return True
+
+async def main():
+    backend = ImageBackend()
+    repl = AsyncREPL(enable_image_paste=True)  # Enabled by default
+    await repl.run(backend)
+
+asyncio.run(main())
+```
+
+### Usage
+
+1. Copy an image to clipboard (screenshot, file, etc.)
+2. Type your message in the REPL
+3. Press **F6** or **Ctrl+Shift+V** to paste
+4. Continue typing if needed
+5. Press **Alt+Enter** to send
+
+The image is inserted as a placeholder like `{{image:img_001}}` and the backend receives both the text and the actual image data.
+
+### Smart Paste Behavior
+
+The paste action automatically detects clipboard content:
+
+- **Image data** → Inserts image placeholder `{{image:img_001}}`
+- **Text data** → Inserts text directly
+- **Empty clipboard** → Shows message "No content in clipboard"
+
+### Backend Integration
+
+Backends receive images through an optional `images` parameter:
+
+```python
+class MyBackend:
+    async def handle_input(
+        self,
+        user_input: str,
+        images: dict[str, ImageData] | None = None
+    ) -> bool:
+        # Parse text with placeholders
+        if images:
+            for img_id, img_data in images.items():
+                # img_data.data: bytes - Raw image data
+                # img_data.media_type: str - MIME type (e.g., "image/png")
+                # img_data.timestamp: float - When captured
+                process_image(img_data.data, img_data.media_type)
+
+        return True
+```
+
+### Utility Functions
+
+REPL Toolkit provides utilities to parse and process image placeholders:
+
+#### `parse_image_references(text)`
+
+Extract image IDs and message structure:
+
+```python
+from repl_toolkit import parse_image_references
+
+result = parse_image_references("Look at {{image:img_001}} and {{image:img_002}}")
+# result.image_ids → {'img_001', 'img_002'}
+# result.parts → [('Look at ', None), ('', 'img_001'), (' and ', None), ('', 'img_002')]
+```
+
+#### `iter_content_parts(text, images)`
+
+Iterate through text and images in order:
+
+```python
+from repl_toolkit import iter_content_parts
+
+for content, image in iter_content_parts(user_input, images):
+    if image:
+        # Process image: image.data, image.media_type
+        api_client.send_image(image.data, image.media_type)
+    elif content:
+        # Process text
+        api_client.send_text(content)
+```
+
+#### `reconstruct_message(text, images, formatter)`
+
+Transform message to any format:
+
+```python
+from repl_toolkit import reconstruct_message
+import base64
+
+def to_api_format(content, image):
+    if image:
+        encoded = base64.b64encode(image.data).decode()
+        return {
+            'type': 'image',
+            'source': {'data': encoded, 'media_type': image.media_type}
+        }
+    return {'type': 'text', 'text': content}
+
+# Convert to API-specific format
+parts = []
+for content, image in iter_content_parts(user_input, images):
+    parts.append(to_api_format(content, image))
+```
+
+### Supported Image Formats
+
+The paste action auto-detects these image formats:
+
+- **PNG** (image/png)
+- **JPEG** (image/jpeg)
+- **GIF** (image/gif)
+- **WebP** (image/webp)
+- **BMP** (image/bmp)
+
+### Installation Note
+
+Image paste requires the optional `pyclip` package:
+
+```bash
+pip install pyclip
+```
+
+If `pyclip` is not installed, the feature will gracefully disable with a message when attempted.
+
+### Configuration
+
+Control image paste support when creating the REPL:
+
+```python
+# Enable image paste (default)
+repl = AsyncREPL(enable_image_paste=True)
+
+# Disable image paste
+repl = AsyncREPL(enable_image_paste=False)
+```
+
+### Example
+
+See `examples/image_paste_demo.py` for a complete working example:
+
+```bash
+python examples/image_paste_demo.py
+```
+
+### Built-in Action
+
+| Action | Command | Shortcuts | Description |
+|--------|---------|-----------|-------------|
+| **Paste** | `/paste-image` | `F6`, `Ctrl+Shift+V` | Paste image or text from clipboard |
+
+
 ## Keyboard Shortcuts
 
 The system supports rich keyboard shortcut definitions:

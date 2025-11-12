@@ -1,77 +1,77 @@
 """
-REPL Toolkit - A Python toolkit for building interactive REPL and headless interfaces.
+repl_toolkit: A modern toolkit for building async REPL interfaces.
 
-This package provides tools for creating interactive command-line interfaces
-with support for both commands and keyboard shortcuts, featuring late backend
-binding for resource context scenarios.
+This package provides components for creating interactive command-line
+interfaces with support for actions (commands and keyboard shortcuts),
+auto-completion, and flexible input handling.
 
-Key Features:
-- Action system with commands and keyboard shortcuts
-- Late backend binding for resource contexts
-- Protocol-based architecture for type safety
-- Comprehensive test coverage
-- Async-native design
-- Auto-formatting utilities for HTML and ANSI text
-- Custom output handling with configurable printer
-- Shell expansion and prefix-based completion
-- Image paste support from clipboard
-
-Example:
-    >>> import asyncio
-    >>> from repl_toolkit import run_async_repl, ActionRegistry
+Basic usage:
+    >>> from repl_toolkit import AsyncREPL
     >>>
     >>> class MyBackend:
-    ...     async def handle_input(self, user_input: str, images=None) -> bool:
-    ...         print(f"You said: {user_input}")
-    ...         if images:
-    ...             print(f"With {len(images)} images")
+    ...     async def handle_input(self, user_input: str) -> bool:
+    ...         print(f"Received: {user_input}")
     ...         return True
     >>>
-    >>> async def main():
-    ...     backend = MyBackend()
-    ...     await run_async_repl(backend=backend)
-    >>>
-    >>> # asyncio.run(main())
+    >>> repl = AsyncREPL()
+    >>> await repl.run(MyBackend())
+
+With image support:
+    >>> class ImageBackend:
+    ...     async def handle_input(self, user_input: str, images=None) -> bool:
+    ...         from repl_toolkit import parse_image_references
+    ...
+    ...         parsed = parse_image_references(user_input)
+    ...         for img_id in parsed.image_ids:
+    ...             img_data = images[img_id]
+    ...             # Process image: img_data.data, img_data.media_type
+    ...         return True
 """
 
 __version__ = "1.2.0"
-__author__ = "REPL Toolkit Contributors"
-__license__ = "MIT"
 
-from .actions import Action, ActionContext, ActionError, ActionRegistry
-
-# Core exports
+from .actions import Action, ActionContext, ActionRegistry
 from .async_repl import AsyncREPL, run_async_repl
 from .completion import PrefixCompleter, ShellExpansionCompleter
 from .formatting import auto_format, create_auto_printer, detect_format_type, print_auto_formatted
 from .headless_repl import HeadlessREPL, run_headless_mode
-from .images import ImageData, detect_media_type
+from .images import (
+    ImageData,
+    ParsedContent,
+    detect_media_type,
+    iter_content_parts,
+    parse_image_references,
+    reconstruct_message,
+)
 from .ptypes import ActionHandler, AsyncBackend, Completer
 
 __all__ = [
-    # Core classes
+    # Core REPL
     "AsyncREPL",
+    "run_async_repl",
     "HeadlessREPL",
-    "ActionRegistry",
+    "run_headless_mode",
+    # Actions
     "Action",
     "ActionContext",
-    "ActionError",
-    # Convenience functions
-    "run_async_repl",
-    "run_headless_mode",
-    # Protocols/Types
-    "AsyncBackend",
-    "ActionHandler",
-    "Completer",
-    # Image support
-    "ImageData",
-    "detect_media_type",
-    # Formatting utilities
-    "detect_format_type",
-    "auto_format",
-    "print_auto_formatted",
-    "create_auto_printer",
-    # Completion utilities
-    "ShellExpansionCompleter",
+    "ActionRegistry",
+    # Completion
     "PrefixCompleter",
+    "ShellExpansionCompleter",
+    # Formatting
+    "auto_format",
+    "create_auto_printer",
+    "detect_format_type",
+    "print_auto_formatted",
+    # Images
+    "ImageData",
+    "ParsedContent",
+    "detect_media_type",
+    "parse_image_references",
+    "iter_content_parts",
+    "reconstruct_message",
+    # Protocols
+    "ActionHandler",
+    "AsyncBackend",
+    "Completer",
 ]

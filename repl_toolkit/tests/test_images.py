@@ -158,7 +158,7 @@ class TestPasteImageAction:
 
         assert action.name == "paste_image"
         assert action.command == "/paste-image"
-        assert action.keys == "f6"
+        assert action.keys == ["f6", "c-s-v"]
         assert action.handler is not None
 
     def test_paste_image_action_registered(self, mock_terminal_for_repl):
@@ -201,11 +201,65 @@ class TestPasteImageAction:
         assert "img_001" in repl._image_buffer
 
         # Verify placeholder was inserted
-        mock_buffer.insert_text.assert_called_once_with("{{image:img_001}}")
+        mock_buffer.insert_text.assert_called_once_with(" {{image:img_001}}")
 
     @patch("pyclip.paste")
-    def test_paste_image_no_data(self, mock_paste, mock_terminal_for_repl):
-        """Test paste when no image in clipboard."""
+    def test_paste_text_fallback(self, mock_paste, mock_terminal_for_repl):
+        """Test paste falls back to text when clipboard has text."""
+        repl = AsyncREPL(enable_image_paste=True)
+
+        # Mock clipboard: no binary image, but has text
+        def paste_side_effect(text=True):
+            if text:
+                return "Hello from clipboard"
+            return None  # No binary data
+
+        mock_paste.side_effect = paste_side_effect
+
+        mock_buffer = Mock()
+        mock_buffer.insert_text = Mock()
+
+        context = ActionContext(
+            registry=repl.action_registry, repl=repl, buffer=mock_buffer, triggered_by="shortcut"
+        )
+
+        repl.action_registry.execute_action("paste_image", context)
+
+        # No image should be added
+        assert len(repl._image_buffer) == 0
+        # Text should be inserted
+        mock_buffer.insert_text.assert_called_once_with("Hello from clipboard")
+
+    @patch("pyclip.paste")
+    def test_paste_invalid_image_falls_back_to_text(self, mock_paste, mock_terminal_for_repl):
+        """Test paste falls back to text when binary data is not a valid image."""
+        repl = AsyncREPL(enable_image_paste=True)
+
+        # Mock clipboard: has binary data but not an image, also has text representation
+        def paste_side_effect(text=True):
+            if text:
+                return "some text content"
+            return b"not an image"  # Binary data but not valid image
+
+        mock_paste.side_effect = paste_side_effect
+
+        mock_buffer = Mock()
+        mock_buffer.insert_text = Mock()
+
+        context = ActionContext(
+            registry=repl.action_registry, repl=repl, buffer=mock_buffer, triggered_by="shortcut"
+        )
+
+        repl.action_registry.execute_action("paste_image", context)
+
+        # No image should be added
+        assert len(repl._image_buffer) == 0
+        # Text should be inserted
+        mock_buffer.insert_text.assert_called_once_with("some text content")
+
+    @patch("pyclip.paste")
+    def test_paste_no_data(self, mock_paste, mock_terminal_for_repl):
+        """Test paste when no content in clipboard."""
         repl = AsyncREPL(enable_image_paste=True)
 
         mock_paste.return_value = None
@@ -219,28 +273,7 @@ class TestPasteImageAction:
 
         repl.action_registry.execute_action("paste_image", context)
 
-        # No image should be added
-        assert len(repl._image_buffer) == 0
-        mock_buffer.insert_text.assert_not_called()
-
-    @patch("pyclip.paste")
-    def test_paste_image_invalid_format(self, mock_paste, mock_terminal_for_repl):
-        """Test paste with invalid image format."""
-        repl = AsyncREPL(enable_image_paste=True)
-
-        # Mock clipboard with non-image data
-        mock_paste.return_value = b"not an image"
-
-        mock_buffer = Mock()
-        mock_buffer.insert_text = Mock()
-
-        context = ActionContext(
-            registry=repl.action_registry, repl=repl, buffer=mock_buffer, triggered_by="shortcut"
-        )
-
-        repl.action_registry.execute_action("paste_image", context)
-
-        # No image should be added
+        # Nothing should be added
         assert len(repl._image_buffer) == 0
         mock_buffer.insert_text.assert_not_called()
 
@@ -433,6 +466,18 @@ class TestImagePlaceholders:
         repl.action_registry.execute_action("paste_image", context)
 
         assert len(placeholders) == 2
-        assert placeholders[0] == "{{image:img_001}}"
-        assert placeholders[1] == "{{image:img_002}}"
+        assert placeholders[0] == " {{image:img_001}}"
+        assert placeholders[1] == " {{image:img_002}}"
         assert len(repl._image_buffer) == 2
+
+    def test_paste_image_key_bindings(self, mock_terminal_for_repl):
+        """Test that paste_image has both F6 and Ctrl+Shift+V bindings."""
+        repl = AsyncREPL(enable_image_paste=True)
+
+        # Both keys should be registered
+        assert "f6" in repl.action_registry.key_map
+        assert "c-s-v" in repl.action_registry.key_map
+
+        # Both should map to paste_image
+        assert repl.action_registry.key_map["f6"] == "paste_image"
+        assert repl.action_registry.key_map["c-s-v"] == "paste_image"
