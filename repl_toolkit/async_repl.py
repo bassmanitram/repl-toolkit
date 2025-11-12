@@ -24,7 +24,7 @@ from prompt_toolkit.output import DummyOutput
 from .actions import ActionRegistry
 from .ptypes import ActionHandler, AsyncBackend, Completer
 
-THINKING = HTML("<i><grey>Thinking... (Press Alt+C to cancel)</grey></i>")
+THINKING = HTML("<i><grey>Thinking... (Press Ctrl+C or Alt+C to cancel)</grey></i>")
 
 
 class AsyncREPL:
@@ -107,6 +107,7 @@ class AsyncREPL:
         Built-in Key Bindings:
         - Enter: Add new line
         - Alt+Enter: Send message
+        - Ctrl+C: Cancel operation (during processing)
         - Alt+C: Cancel operation (during processing)
 
         Dynamic bindings are loaded from the action registry.
@@ -285,7 +286,8 @@ class AsyncREPL:
         Process user input with cancellation support.
 
         Runs the backend processing task concurrently with a cancellation
-        listener, allowing users to cancel long-running operations.
+        listener, allowing users to cancel long-running operations with
+        Ctrl+C or Alt+C.
 
         Args:
             user_input: Input string to process
@@ -297,7 +299,15 @@ class AsyncREPL:
 
         kb = KeyBindings()
 
+        # Alt+C cancellation
         @kb.add("escape", "c")
+        def _(event):
+            if not cancel_future.done():
+                cancel_future.set_result(None)
+            event.app.exit()
+
+        # Ctrl+C cancellation
+        @kb.add("c-c")
         def _(event):
             if not cancel_future.done():
                 cancel_future.set_result(None)
@@ -318,15 +328,31 @@ class AsyncREPL:
             if cancel_future in done:
                 print("\nOperation cancelled by user.")
                 backend_task.cancel()
+                try:
+                    await backend_task
+                except asyncio.CancelledError:
+                    pass
             else:
                 success = backend_task.result()
                 if not success:
                     print("Operation failed.")
 
+        except KeyboardInterrupt:
+            # Handle Ctrl+C during wait
+            print("\nOperation cancelled by user (Ctrl+C).")
+            backend_task.cancel()
+            try:
+                await backend_task
+            except asyncio.CancelledError:
+                pass
         except Exception as e:
             print(f"\nAn error occurred: {e}")
             if not backend_task.done():
                 backend_task.cancel()
+                try:
+                    await backend_task
+                except asyncio.CancelledError:
+                    pass
 
         finally:
             # Cleanup
