@@ -8,8 +8,9 @@ robust cancellation of long-running tasks.
 
 import asyncio
 import sys
+import time
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional
 
 from loguru import logger
 from prompt_toolkit import HTML, PromptSession
@@ -21,7 +22,8 @@ from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.keys import Keys
 from prompt_toolkit.output import DummyOutput
 
-from .actions import ActionRegistry
+from .actions import ActionContext, ActionRegistry
+from .images import ImageData, create_paste_image_action
 from .ptypes import ActionHandler, AsyncBackend, Completer
 
 THINKING = HTML("<i><grey>Thinking... (Press Alt+C to cancel)</grey></i>")
@@ -45,6 +47,7 @@ class AsyncREPL:
         completer: Optional[Completer] = None,
         prompt_string: Optional[str] = None,
         history_path: Optional[Path] = None,
+        enable_image_paste: bool = True,
         **kwargs,
     ):
         """
@@ -55,6 +58,7 @@ class AsyncREPL:
             completer: Optional tab-completion provider
             prompt_string: Custom prompt string (default: "User: ")
             history_path: Optional path for command history storage
+            enable_image_paste: Enable image paste support (default: True)
 
         Note:
             Backend is provided later via the run() method to support scenarios
@@ -64,6 +68,19 @@ class AsyncREPL:
 
         self.prompt_string = HTML(prompt_string or "User: ")
         self.action_registry = action_registry or ActionRegistry()
+
+        # Image support
+        self._image_buffer: Dict[str, ImageData] = {}
+        self._image_counter = 0
+
+        # Register image paste action if enabled
+        if enable_image_paste:
+            try:
+                paste_action = create_paste_image_action()
+                self.action_registry.register_action(paste_action)
+            except Exception as e:
+                logger.warning(f"Failed to register image paste action: {e}")
+
         self.session = PromptSession(  # type: ignore[var-annotated]
             message=self.prompt_string,
             history=self._create_history(history_path),
@@ -75,6 +92,40 @@ class AsyncREPL:
         self.main_app = self.session.app
 
         logger.trace("AsyncREPL.__init__() exit")
+
+    def add_image(self, img_bytes: bytes, media_type: str) -> str:
+        """
+        Add image to buffer for next message send.
+
+        Args:
+            img_bytes: Raw image bytes
+            media_type: MIME type of the image
+
+        Returns:
+            image_id: The ID to reference this image
+        """
+        logger.trace("AsyncREPL.add_image() entry")
+
+        self._image_counter += 1
+        image_id = f"img_{self._image_counter:03d}"
+
+        self._image_buffer[image_id] = ImageData(
+            data=img_bytes, media_type=media_type, timestamp=time.time()
+        )
+
+        logger.debug(f"Added image {image_id} ({media_type}, {len(img_bytes)} bytes)")
+        logger.trace("AsyncREPL.add_image() exit")
+        return image_id
+
+    def clear_images(self) -> None:
+        """Clear all images from the buffer."""
+        logger.trace("AsyncREPL.clear_images() entry/exit")
+        self._image_buffer.clear()
+
+    def get_images(self) -> Dict[str, ImageData]:
+        """Get current image buffer."""
+        logger.trace("AsyncREPL.get_images() entry/exit")
+        return self._image_buffer.copy()
 
     def _create_history(self, path: Optional[Path]) -> Optional[FileHistory]:
         """
@@ -170,9 +221,17 @@ class AsyncREPL:
 
             @bindings.add(*keys)  # pragma: no cover
             def _(event):
-                # Execute action synchronously
+                # Execute action with full context
                 try:
-                    self.action_registry.handle_shortcut(key_combo, event)
+                    context = ActionContext(
+                        registry=self.action_registry,
+                        repl=self,
+                        buffer=event.current_buffer,
+                        backend=getattr(self.action_registry, "backend", None),
+                        event=event,
+                        triggered_by="shortcut",
+                    )
+                    self.action_registry.execute_action(action_name, context)
                 except Exception as e:
                     logger.error(f"Error executing shortcut '{key_combo}': {e}")
                     print(f"Error: {e}")
@@ -305,7 +364,12 @@ class AsyncREPL:
 
         cancel_app = Application(key_bindings=kb, output=DummyOutput(), input=create_input())  # type: ignore[var-annotated]
 
-        backend_task = asyncio.create_task(backend.handle_input(user_input))
+        # Prepare kwargs for backend - only pass images if present
+        kwargs = {}
+        if self._image_buffer:
+            kwargs["images"] = self._image_buffer
+
+        backend_task = asyncio.create_task(backend.handle_input(user_input, **kwargs))
         listener_task = asyncio.create_task(cancel_app.run_async())
         print(THINKING)
 
@@ -329,6 +393,9 @@ class AsyncREPL:
                 backend_task.cancel()
 
         finally:
+            # Clear images after send (success or failure - backend's responsibility now)
+            self._image_buffer.clear()
+
             # Cleanup
             if not cancel_app.is_done:
                 cancel_app.exit()

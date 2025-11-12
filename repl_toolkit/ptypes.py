@@ -5,10 +5,11 @@ Defines the interface contracts that backends and handlers must implement
 for compatibility with the REPL toolkit.
 """
 
-from typing import TYPE_CHECKING, List, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Dict, List, Optional, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from .actions.action import ActionContext  # Avoid circular import
+    from .images import ImageData  # Avoid circular import
 
 
 @runtime_checkable
@@ -20,12 +21,16 @@ class AsyncBackend(Protocol):
     in an asynchronous manner, supporting cancellation and error handling.
     """
 
-    async def handle_input(self, user_input: str) -> bool:
+    async def handle_input(
+        self, user_input: str, images: Optional[Dict[str, "ImageData"]] = None
+    ) -> bool:
         """
         Handle user input asynchronously.
 
         Args:
             user_input: The input string from the user
+            images: Optional dictionary mapping image IDs to ImageData.
+                   Image IDs appear in user_input as {{image:img_xxx}} placeholders.
 
         Returns:
             bool: True if processing was successful, False if there was an error
@@ -33,6 +38,8 @@ class AsyncBackend(Protocol):
         Note:
             This method should handle its own error reporting to the user.
             The return value indicates success/failure for flow control.
+
+            Legacy backends can ignore the images parameter for backward compatibility.
         """
         ...
 

@@ -172,6 +172,7 @@ class ActionContext:
 
     registry: "ActionRegistry"  # Reference to action registry
     backend: Optional[Any] = None  # Backend instance (if available)
+    repl: Optional[Any] = None  # Reference to REPL instance (if available)
     event: Optional[Any] = None  # KeyPress event for shortcuts
     args: List[str] = field(default_factory=list)  # Command arguments
     triggered_by: str = "unknown"  # How action was triggered

@@ -14,14 +14,17 @@ Key Features:
 - Auto-formatting utilities for HTML and ANSI text
 - Custom output handling with configurable printer
 - Shell expansion and prefix-based completion
+- Image paste support from clipboard
 
 Example:
     >>> import asyncio
     >>> from repl_toolkit import run_async_repl, ActionRegistry
     >>>
     >>> class MyBackend:
-    ...     async def handle_input(self, user_input: str) -> bool:
+    ...     async def handle_input(self, user_input: str, images=None) -> bool:
     ...         print(f"You said: {user_input}")
+    ...         if images:
+    ...             print(f"With {len(images)} images")
     ...         return True
     >>>
     >>> async def main():
@@ -42,6 +45,7 @@ from .async_repl import AsyncREPL, run_async_repl
 from .completion import PrefixCompleter, ShellExpansionCompleter
 from .formatting import auto_format, create_auto_printer, detect_format_type, print_auto_formatted
 from .headless_repl import HeadlessREPL, run_headless_mode
+from .images import ImageData, detect_media_type
 from .ptypes import ActionHandler, AsyncBackend, Completer
 
 __all__ = [
@@ -59,6 +63,9 @@ __all__ = [
     "AsyncBackend",
     "ActionHandler",
     "Completer",
+    # Image support
+    "ImageData",
+    "detect_media_type",
     # Formatting utilities
     "detect_format_type",
     "auto_format",
