@@ -36,7 +36,7 @@ jobs:
 
     - name: Type check with mypy
       run: |
-        mypy repl_toolkit/
+        mypy --no-incremental repl_toolkit/
 
     - name: Check package metadata
       run: |

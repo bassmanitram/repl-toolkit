@@ -42,7 +42,7 @@ jobs:
     - name: Type check with mypy (Python 3.9+)
       if: matrix.python-version != '3.8'
       run: |
-        mypy repl_toolkit/
+        mypy --no-incremental repl_toolkit/
 
     - name: Test with pytest
       run: |
