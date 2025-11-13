@@ -36,7 +36,7 @@ jobs:
 
     - name: Type check with mypy
       run: |
-        cd repl_toolkit && mypy --no-incremental --follow-imports=skip --no-site-packages .
+        mypy --python-version=3.10 repl_toolkit/
 
     - name: Check package metadata
       run: |
