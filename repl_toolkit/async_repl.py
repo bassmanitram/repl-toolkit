@@ -370,14 +370,15 @@ class AsyncREPL:
         def _(event):
             if not cancel_future.done():
                 cancel_future.set_result(None)
-            event.app.exit()
+            if not event.app.is_done:
+                event.app.exit()
 
         # Ctrl+C cancellation
         @kb.add("c-c")
         def _(event):
             if not cancel_future.done():
                 cancel_future.set_result(None)
-            event.app.exit()
+            event.app.exit(exception=KeyboardInterrupt, style="class:aborting")
 
         cancel_app = Application(key_bindings=kb, output=DummyOutput(), input=create_input())  # type: ignore[var-annotated]
 
