@@ -77,7 +77,7 @@ class AsyncREPL:
         if enable_image_paste:
             try:
                 paste_action = create_paste_image_action()
-                self.action_registry.register_action(paste_action)
+                self.action_registry.register_action(paste_action)  # type: ignore[attr-defined]
             except Exception as e:
                 logger.warning(f"Failed to register image paste action: {e}")
 
