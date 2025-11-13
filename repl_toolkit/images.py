@@ -3,7 +3,7 @@
 import re
 import time
 from dataclasses import dataclass
-from typing import Callable, Dict, Iterator, Optional, Tuple
+from typing import Callable, Dict, Iterator, List, Optional, Set, Tuple
 
 
 @dataclass
@@ -34,8 +34,8 @@ class ParsedContent:
     """
 
     text: str
-    parts: list[Tuple[str, Optional[str]]]
-    image_ids: set[str]
+    parts: List[Tuple[str, Optional[str]]]
+    image_ids: Set[str]
 
 
 def detect_media_type(data: bytes) -> Optional[str]:
@@ -87,8 +87,8 @@ def parse_image_references(text: str) -> ParsedContent:
         {'img_001', 'img_002'}
     """
     pattern = r"\{\{image:(\w+)\}\}"
-    parts: list[Tuple[str, Optional[str]]] = []
-    image_ids: set[str] = set()
+    parts: List[Tuple[str, Optional[str]]] = []
+    image_ids: Set[str] = set()
     last_end = 0
 
     for match in re.finditer(pattern, text):
