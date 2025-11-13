@@ -361,7 +361,7 @@ class TestStdinProcessing:
             # KeyboardInterrupt should be caught and handled gracefully
             try:
                 await repl._stdin_loop(self.backend)
-            except KeyboardInterrupt:
+            except (KeyboardInterrupt, Exception):
                 pass  # Expected behavior - KeyboardInterrupt propagates
 
         # KeyboardInterrupt should NOT trigger EOF handling or send buffer

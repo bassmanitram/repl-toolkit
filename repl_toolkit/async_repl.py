@@ -363,36 +363,39 @@ class AsyncREPL:
         logger.debug("AsyncREPL._process_input() entry")
 
         cancel_future = asyncio.Future()  # type: ignore[var-annotated]
-
-        kb = KeyBindings()
-
-        # Alt+C cancellation
-        @kb.add("escape", "c")
-        def _(event):
-            if not cancel_future.done():
-                cancel_future.set_result(None)
-            if not event.app.is_done:
-                event.app.exit()
-
-        # Ctrl+C cancellation
-        @kb.add("c-c")
-        def _(event):
-            if not cancel_future.done():
-                cancel_future.set_result(None)
-            event.app.exit(exception=KeyboardInterrupt, style="class:aborting")
-
-        cancel_app = Application(key_bindings=kb, output=DummyOutput(), input=create_input())  # type: ignore[var-annotated]
-
-        # Prepare kwargs for backend - only pass images if present
-        kwargs = {}
-        if self._image_buffer:
-            kwargs["images"] = self._image_buffer
-
-        backend_task = asyncio.create_task(backend.handle_input(user_input, **kwargs))
-        listener_task = asyncio.create_task(cancel_app.run_async())
-        print(THINKING)
+        cancel_app = None
+        listener_task = None
+        backend_task = None
 
         try:
+            kb = KeyBindings()
+
+            # Alt+C cancellation
+            @kb.add("escape", "c")
+            def _(event):
+                if not cancel_future.done():
+                    cancel_future.set_result(None)
+                if not event.app.is_done:
+                    event.app.exit()
+
+            # Ctrl+C cancellation
+            @kb.add("c-c")
+            def _(event):
+                if not cancel_future.done():
+                    cancel_future.set_result(None)
+                event.app.exit(exception=KeyboardInterrupt, style="class:aborting")
+
+            cancel_app = Application(key_bindings=kb, output=DummyOutput(), input=create_input())  # type: ignore[var-annotated]
+
+            # Prepare kwargs for backend - only pass images if present
+            kwargs = {}
+            if self._image_buffer:
+                kwargs["images"] = self._image_buffer
+
+            backend_task = asyncio.create_task(backend.handle_input(user_input, **kwargs))
+            listener_task = asyncio.create_task(cancel_app.run_async())  # type: ignore[attr-defined]
+            print(THINKING)
+
             done, pending = await asyncio.wait(
                 [backend_task, cancel_future],
                 return_when=asyncio.FIRST_COMPLETED,
@@ -413,14 +416,15 @@ class AsyncREPL:
         except KeyboardInterrupt:
             # Handle Ctrl+C during wait
             print("\nOperation cancelled by user (Ctrl+C).")
-            backend_task.cancel()
-            try:
-                await backend_task
-            except asyncio.CancelledError:
-                pass
+            if backend_task and not backend_task.done():
+                backend_task.cancel()
+                try:
+                    await backend_task
+                except asyncio.CancelledError:
+                    pass
         except Exception as e:
             print(f"\nAn error occurred: {e}")
-            if not backend_task.done():
+            if backend_task and not backend_task.done():
                 backend_task.cancel()
                 try:
                     await backend_task
@@ -431,15 +435,27 @@ class AsyncREPL:
             # Clear images after send (success or failure - backend's responsibility now)
             self._image_buffer.clear()
 
-            # Cleanup
-            if not cancel_app.is_done:
-                cancel_app.exit()
+            # Cleanup cancel_app and listener_task
+            try:
+                if cancel_app and not cancel_app.is_done:
+                    cancel_app.exit()
 
-            await listener_task
+                if listener_task and not listener_task.done():
+                    listener_task.cancel()
+                    try:
+                        await listener_task
+                    except asyncio.CancelledError:
+                        pass
+            except Exception as e:
+                logger.debug(f"Cleanup exception (non-fatal): {e}")
 
-            self.main_app.renderer.reset()
-            self.main_app.invalidate()
-            await asyncio.sleep(0)
+            # Reset UI
+            try:
+                self.main_app.renderer.reset()
+                self.main_app.invalidate()
+                await asyncio.sleep(0)
+            except Exception as e:
+                logger.debug(f"UI reset exception (non-fatal): {e}")
 
         logger.debug("AsyncREPL._process_input() exit")
 

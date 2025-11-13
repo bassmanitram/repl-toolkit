@@ -1,4 +1,6 @@
+import asyncio
 import logging
+import sys
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -31,6 +33,7 @@ class HeadlessREPL:
         self.send_count = 0
         self.total_success = True
         self.running = True
+        self.interrupted = False
 
         logger.debug("HeadlessREPL.__init__() exit")
 
@@ -38,12 +41,15 @@ class HeadlessREPL:
         """
         Run headless mode with stdin processing.
 
+        Catches KeyboardInterrupt and converts to False return value to prevent
+        "Task exception was never retrieved" errors when running under asyncio.run().
+
         Args:
             backend: Backend for processing input
             initial_message: Optional message to process before stdin loop
 
         Returns:
-            bool: True if all operations succeeded
+            bool: True if all operations succeeded, False if interrupted or failed
         """
         logger.debug("HeadlessREPL.run() entry")
 
@@ -65,6 +71,13 @@ class HeadlessREPL:
             logger.debug("HeadlessREPL.run() exit - success")
             return self.total_success
 
+        except KeyboardInterrupt:
+            # Ctrl+C pressed - convert to clean return value
+            # This prevents "Task exception was never retrieved" error
+            logger.info("Headless REPL interrupted by user (Ctrl+C)")
+            self.interrupted = True
+            logger.debug("HeadlessREPL.run() exit - interrupted")
+            return False  # Return False, don't raise
         except Exception as e:
             logger.error(f"Error in headless processing: {e}")
             logger.debug("HeadlessREPL.run() exit - exception")
@@ -81,13 +94,11 @@ class HeadlessREPL:
         Args:
             backend: Backend for processing accumulated content
         """
-        import sys
-
         line_num = 0
 
         while True:
             # Simple synchronous readline - blocks until line available
-            # This is perfectly fine! We want to wait for the next line.
+            # KeyboardInterrupt will be raised here on Ctrl+C
             line = sys.stdin.readline()
 
             if not line:  # EOF
@@ -218,30 +229,25 @@ async def run_headless_mode(
     Content lines are accumulated in a buffer, commands are processed through
     the action system, and /send commands trigger backend processing.
 
+    KeyboardInterrupt is caught and converted to a False return value to prevent
+    "Task exception was never retrieved" errors in asyncio.
+
     Args:
         backend: Backend for processing input
         action_registry: Optional action registry for command processing
         initial_message: Optional message to process before stdin loop
 
     Returns:
-        bool: True if all send operations succeeded
+        bool: True if all send operations succeeded, False if interrupted or failed
 
     Example:
-        # stdin input:
-        # Message part 1
-        # Message part 2
-        # /send           # Send parts 1-2, wait for completion
-        # Message part 3
-        # /help           # Process command
-        # Message part 4
-        # /send           # Send parts 3-4, wait for completion
-        # Final message
-        # ^D              # EOF triggers final send
-
         success = await run_headless_mode(
             backend=my_backend,
             initial_message="Starting headless session"
         )
+
+        # False can mean either interrupted or error
+        # Check repl.interrupted flag if you need to distinguish
     """
     logger.debug("run_headless_mode() entry")
 
