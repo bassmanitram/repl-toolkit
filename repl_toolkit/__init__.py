@@ -28,6 +28,12 @@ With image support:
     ...         return True
 """
 
+import logging
+
+# Add NullHandler to prevent "No handler found" warnings
+# Applications using this library should configure their own handlers
+logging.getLogger(__name__).addHandler(logging.NullHandler())
+
 __version__ = "1.2.0"
 
 from .actions import Action, ActionContext, ActionRegistry

@@ -1,6 +1,7 @@
+import logging
 from typing import Optional
 
-from loguru import logger
+logger = logging.getLogger(__name__)
 
 from .actions.registry import ActionRegistry
 from .ptypes import ActionHandler, AsyncBackend
@@ -20,7 +21,7 @@ class HeadlessREPL:
 
     def __init__(self, action_registry: Optional[ActionHandler] = None):
         """Initialize headless REPL."""
-        logger.trace("HeadlessREPL.__init__() entry")
+        logger.debug("HeadlessREPL.__init__() entry")
 
         # Simple string buffer for content accumulation
         self.buffer = ""
@@ -31,7 +32,7 @@ class HeadlessREPL:
         self.total_success = True
         self.running = True
 
-        logger.trace("HeadlessREPL.__init__() exit")
+        logger.debug("HeadlessREPL.__init__() exit")
 
     async def run(self, backend: AsyncBackend, initial_message: Optional[str] = None) -> bool:
         """
@@ -44,7 +45,7 @@ class HeadlessREPL:
         Returns:
             bool: True if all operations succeeded
         """
-        logger.trace("HeadlessREPL.run() entry")
+        logger.debug("HeadlessREPL.run() entry")
 
         # Set backend in action registry
         self.action_registry.backend = backend  # type: ignore[attr-defined]
@@ -61,12 +62,12 @@ class HeadlessREPL:
             # Enter stdin processing loop
             await self._stdin_loop(backend)
 
-            logger.trace("HeadlessREPL.run() exit - success")
+            logger.debug("HeadlessREPL.run() exit - success")
             return self.total_success
 
         except Exception as e:
             logger.error(f"Error in headless processing: {e}")
-            logger.trace("HeadlessREPL.run() exit - exception")
+            logger.debug("HeadlessREPL.run() exit - exception")
             return False
 
     async def _stdin_loop(self, backend: AsyncBackend):
@@ -114,7 +115,7 @@ class HeadlessREPL:
         Args:
             line: Line of text to add to the buffer
         """
-        logger.trace("HeadlessREPL._add_to_buffer() entry")
+        logger.debug("HeadlessREPL._add_to_buffer() entry")
 
         if self.buffer:
             self.buffer += "\n" + line
@@ -122,7 +123,7 @@ class HeadlessREPL:
             self.buffer = line
 
         logger.debug(f"Added line to buffer, total length: {len(self.buffer)}")
-        logger.trace("HeadlessREPL._add_to_buffer() exit")
+        logger.debug("HeadlessREPL._add_to_buffer() exit")
 
     async def _execute_send(self, backend: AsyncBackend, context_info: str):
         """
@@ -132,13 +133,13 @@ class HeadlessREPL:
             backend: Backend to send buffer content to
             context_info: Context information for logging (e.g., "line 5", "EOF")
         """
-        logger.trace("HeadlessREPL._execute_send() entry")
+        logger.debug("HeadlessREPL._execute_send() entry")
 
         buffer_content = self.buffer.strip()
 
         if not buffer_content:
             logger.debug(f"Send #{self.send_count + 1} at {context_info}: empty buffer, skipping")
-            logger.trace("HeadlessREPL._execute_send() exit - empty buffer")
+            logger.debug("HeadlessREPL._execute_send() exit - empty buffer")
             return
 
         self.send_count += 1
@@ -165,7 +166,7 @@ class HeadlessREPL:
             # Clear buffer even on exception to continue processing
             self.buffer = ""
 
-        logger.trace("HeadlessREPL._execute_send() exit")
+        logger.debug("HeadlessREPL._execute_send() exit")
 
     def _execute_command(self, command: str):
         """
@@ -174,7 +175,7 @@ class HeadlessREPL:
         Args:
             command: Command string to execute (e.g., "/help", "/shortcuts")
         """
-        logger.trace("HeadlessREPL._execute_command() entry")
+        logger.debug("HeadlessREPL._execute_command() entry")
 
         try:
             self.action_registry.handle_command(command, headless_mode=True, buffer=self.buffer)
@@ -183,7 +184,7 @@ class HeadlessREPL:
             logger.error(f"Error executing command '{command}': {e}")
             # Don't fail entire process for command errors
 
-        logger.trace("HeadlessREPL._execute_command() exit")
+        logger.debug("HeadlessREPL._execute_command() exit")
 
     async def _handle_eof(self, backend: AsyncBackend):
         """
@@ -192,7 +193,7 @@ class HeadlessREPL:
         Args:
             backend: Backend to send remaining buffer content to
         """
-        logger.trace("HeadlessREPL._handle_eof() entry")
+        logger.debug("HeadlessREPL._handle_eof() entry")
 
         buffer_content = self.buffer.strip()
 
@@ -202,7 +203,7 @@ class HeadlessREPL:
         else:
             logger.debug("EOF reached with empty buffer")
 
-        logger.trace("HeadlessREPL._handle_eof() exit")
+        logger.debug("HeadlessREPL._handle_eof() exit")
 
 
 async def run_headless_mode(
@@ -242,10 +243,10 @@ async def run_headless_mode(
             initial_message="Starting headless session"
         )
     """
-    logger.trace("run_headless_mode() entry")
+    logger.debug("run_headless_mode() entry")
 
     headless_repl = HeadlessREPL(action_registry)
     result = await headless_repl.run(backend, initial_message)
 
-    logger.trace("run_headless_mode() exit")
+    logger.debug("run_headless_mode() exit")
     return result

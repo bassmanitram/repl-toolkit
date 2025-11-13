@@ -7,12 +7,13 @@ robust cancellation of long-running tasks.
 """
 
 import asyncio
+import logging
 import sys
 import time
 from pathlib import Path
 from typing import Dict, Optional
 
-from loguru import logger
+logger = logging.getLogger(__name__)
 from prompt_toolkit import HTML, PromptSession
 from prompt_toolkit import print_formatted_text as print
 from prompt_toolkit.application import Application
@@ -64,7 +65,7 @@ class AsyncREPL:
             Backend is provided later via the run() method to support scenarios
             where the backend is only available within a resource context.
         """
-        logger.trace("AsyncREPL.__init__() entry")
+        logger.debug("AsyncREPL.__init__() entry")
 
         self.prompt_string = HTML(prompt_string or "User: ")
         self.action_registry = action_registry or ActionRegistry()
@@ -91,7 +92,7 @@ class AsyncREPL:
         )
         self.main_app = self.session.app
 
-        logger.trace("AsyncREPL.__init__() exit")
+        logger.debug("AsyncREPL.__init__() exit")
 
     def add_image(self, img_bytes: bytes, media_type: str) -> str:
         """
@@ -104,7 +105,7 @@ class AsyncREPL:
         Returns:
             image_id: The ID to reference this image
         """
-        logger.trace("AsyncREPL.add_image() entry")
+        logger.debug("AsyncREPL.add_image() entry")
 
         self._image_counter += 1
         image_id = f"img_{self._image_counter:03d}"
@@ -114,17 +115,17 @@ class AsyncREPL:
         )
 
         logger.debug(f"Added image {image_id} ({media_type}, {len(img_bytes)} bytes)")
-        logger.trace("AsyncREPL.add_image() exit")
+        logger.debug("AsyncREPL.add_image() exit")
         return image_id
 
     def clear_images(self) -> None:
         """Clear all images from the buffer."""
-        logger.trace("AsyncREPL.clear_images() entry/exit")
+        logger.debug("AsyncREPL.clear_images() entry/exit")
         self._image_buffer.clear()
 
     def get_images(self) -> Dict[str, ImageData]:
         """Get current image buffer."""
-        logger.trace("AsyncREPL.get_images() entry/exit")
+        logger.debug("AsyncREPL.get_images() entry/exit")
         return self._image_buffer.copy()
 
     def _create_history(self, path: Optional[Path]) -> Optional[FileHistory]:
@@ -137,15 +138,15 @@ class AsyncREPL:
         Returns:
             FileHistory instance or None
         """
-        logger.trace("AsyncREPL._create_history() entry")
+        logger.debug("AsyncREPL._create_history() entry")
 
         if path:  # pragma: no cover
             path.parent.mkdir(parents=True, exist_ok=True)
             result = FileHistory(str(path))
-            logger.trace("AsyncREPL._create_history() exit - with history")
+            logger.debug("AsyncREPL._create_history() exit - with history")
             return result
 
-        logger.trace("AsyncREPL._create_history() exit - no history")
+        logger.debug("AsyncREPL._create_history() exit - no history")
         return None
 
     def _create_key_bindings(self) -> KeyBindings:
@@ -166,7 +167,7 @@ class AsyncREPL:
         Returns:
             KeyBindings instance with configured shortcuts
         """
-        logger.trace("AsyncREPL._create_key_bindings() entry")
+        logger.debug("AsyncREPL._create_key_bindings() entry")
 
         bindings = KeyBindings()
 
@@ -184,7 +185,7 @@ class AsyncREPL:
         # Register dynamic key bindings from action registry
         self._register_action_shortcuts(bindings)
 
-        logger.trace("AsyncREPL._create_key_bindings() exit")
+        logger.debug("AsyncREPL._create_key_bindings() exit")
         return bindings
 
     def _register_action_shortcuts(self, bindings: KeyBindings) -> None:
@@ -194,16 +195,16 @@ class AsyncREPL:
         Args:
             bindings: KeyBindings instance to add shortcuts to
         """
-        logger.trace("AsyncREPL._register_action_shortcuts() entry")
+        logger.debug("AsyncREPL._register_action_shortcuts() entry")
 
         if not hasattr(self.action_registry, "key_map"):
-            logger.trace("AsyncREPL._register_action_shortcuts() exit - no key_map")
+            logger.debug("AsyncREPL._register_action_shortcuts() exit - no key_map")
             return
 
         for key_combo, action_name in self.action_registry.key_map.items():
             self._register_shortcut(bindings, key_combo, action_name)
 
-        logger.trace("AsyncREPL._register_action_shortcuts() exit")
+        logger.debug("AsyncREPL._register_action_shortcuts() exit")
 
     def _register_shortcut(self, bindings: KeyBindings, key_combo: str, action_name: str) -> None:
         """
@@ -214,7 +215,7 @@ class AsyncREPL:
             key_combo: Key combination string (e.g., "F1", "ctrl-s")
             action_name: Name of action to execute
         """
-        logger.trace("AsyncREPL._register_shortcut() entry")
+        logger.debug("AsyncREPL._register_shortcut() entry")
 
         try:
             # Parse key combination - handle common formats
@@ -238,13 +239,13 @@ class AsyncREPL:
                     print(f"Error: {e}")
 
             logger.debug(f"Registered shortcut '{key_combo}' -> '{action_name}'")
-            logger.trace("AsyncREPL._register_shortcut() exit - success")
+            logger.debug("AsyncREPL._register_shortcut() exit - success")
 
         except Exception as e:  # pragma: no cover
             logger.error(
                 f"Failed to register shortcut '{key_combo}' for action '{action_name}': {e}"
             )
-            logger.trace("AsyncREPL._register_shortcut() exit - error")
+            logger.debug("AsyncREPL._register_shortcut() exit - error")
 
     def _parse_key_combination(self, key_combo: str) -> tuple:
         """
@@ -256,14 +257,14 @@ class AsyncREPL:
         Returns:
             Tuple of keys for prompt_toolkit
         """
-        logger.trace("AsyncREPL._parse_key_combination() entry")
+        logger.debug("AsyncREPL._parse_key_combination() entry")
 
         # Handle common key formats
         key_combo = key_combo.lower().strip()
 
         # Single function keys
         if key_combo.startswith("f") and key_combo[1:].isdigit():
-            logger.trace("AsyncREPL._parse_key_combination() exit - function key")
+            logger.debug("AsyncREPL._parse_key_combination() exit - function key")
             return (key_combo,)
 
         # Handle modifier combinations
@@ -273,7 +274,7 @@ class AsyncREPL:
             # Three-part combinations (e.g., c-s-v for Ctrl+Shift+V)
             # Already in prompt_toolkit format
             if len(parts) == 3:
-                logger.trace("AsyncREPL._parse_key_combination() exit - multi-mod combo")
+                logger.debug("AsyncREPL._parse_key_combination() exit - multi-mod combo")
                 return (key_combo,)
 
             if len(parts) == 2:
@@ -281,17 +282,17 @@ class AsyncREPL:
 
                 # Map common modifiers
                 if modifier == "ctrl":
-                    logger.trace("AsyncREPL._parse_key_combination() exit - ctrl combo")
+                    logger.debug("AsyncREPL._parse_key_combination() exit - ctrl combo")
                     return ("c-" + key,)
                 elif modifier == "alt":
-                    logger.trace("AsyncREPL._parse_key_combination() exit - alt combo")
+                    logger.debug("AsyncREPL._parse_key_combination() exit - alt combo")
                     return (Keys.Escape, key)
                 elif modifier == "shift":  # pragma: no cover
-                    logger.trace("AsyncREPL._parse_key_combination() exit - shift combo")
+                    logger.debug("AsyncREPL._parse_key_combination() exit - shift combo")
                     return ("s-" + key,)
 
         # Single keys
-        logger.trace("AsyncREPL._parse_key_combination() exit - single key")
+        logger.debug("AsyncREPL._parse_key_combination() exit - single key")
         return (key_combo,)
 
     async def run(
@@ -307,7 +308,7 @@ class AsyncREPL:
             backend: Backend responsible for processing user input
             initial_message: Optional message to process before starting loop
         """
-        logger.trace("AsyncREPL.run() entry")
+        logger.debug("AsyncREPL.run() entry")
 
         # Set backend in action registry for action handlers to access
         self.action_registry.backend = backend  # type: ignore[attr-defined]
@@ -340,11 +341,11 @@ class AsyncREPL:
                 logger.error(f"Error in REPL loop: {e}")
                 print(f"An error occurred: {e}", file=sys.stderr)
 
-        logger.trace("AsyncREPL.run() exit")
+        logger.debug("AsyncREPL.run() exit")
 
     def _should_exit(self, user_input: str) -> bool:
         """Check if input is an exit command."""
-        logger.trace("AsyncREPL._should_exit() entry/exit")
+        logger.debug("AsyncREPL._should_exit() entry/exit")
         return user_input.strip().lower() in ["/exit", "/quit"]
 
     async def _process_input(self, user_input: str, backend: AsyncBackend):  # pragma: no cover
@@ -359,7 +360,7 @@ class AsyncREPL:
             user_input: Input string to process
             backend: Backend to process the input
         """
-        logger.trace("AsyncREPL._process_input() entry")
+        logger.debug("AsyncREPL._process_input() entry")
 
         cancel_future = asyncio.Future()  # type: ignore[var-annotated]
 
@@ -440,7 +441,7 @@ class AsyncREPL:
             self.main_app.invalidate()
             await asyncio.sleep(0)
 
-        logger.trace("AsyncREPL._process_input() exit")
+        logger.debug("AsyncREPL._process_input() exit")
 
 
 # Convenience function
@@ -467,9 +468,9 @@ async def run_async_repl(  # pragma: no cover
         prompt_string: Optional custom prompt
         history_path: Optional history file path
     """
-    logger.trace("run_async_repl() entry")
+    logger.debug("run_async_repl() entry")
 
     repl = AsyncREPL(action_registry, completer, prompt_string, history_path, **kwargs)
     await repl.run(backend, initial_message)
 
-    logger.trace("run_async_repl() exit")
+    logger.debug("run_async_repl() exit")

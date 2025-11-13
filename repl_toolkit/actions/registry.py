@@ -6,9 +6,10 @@ executing actions that can be triggered through multiple interaction methods.
 """
 
 import importlib
+import logging
 from typing import Any, Callable, Dict, List, Optional
 
-from loguru import logger
+logger = logging.getLogger(__name__)
 
 from ..ptypes import ActionHandler, AsyncBackend
 from .action import Action, ActionContext, ActionError, ActionExecutionError, ActionValidationError
@@ -64,7 +65,7 @@ class ActionRegistry(ActionHandler):
         Args:
             printer: Callable for outputting action messages (default: print)
         """
-        logger.trace("ActionRegistry.__init__() entry")
+        logger.debug("ActionRegistry.__init__() entry")
         self.actions: Dict[str, Action] = {}
         self.command_map: Dict[str, str] = {}  # command -> action_name
         self.key_map: Dict[str, str] = {}  # key_combo -> action_name
@@ -73,26 +74,26 @@ class ActionRegistry(ActionHandler):
         self.printer = printer
         # Register built-in actions
         self._register_builtin_actions()
-        logger.trace("ActionRegistry.__init__() exit")
+        logger.debug("ActionRegistry.__init__() exit")
 
     @property
     def backend(self):
         """The backend property getter."""
-        logger.trace("ActionRegistry.backend getter")
+        logger.debug("ActionRegistry.backend getter")
         return self._backend
 
     @backend.setter
     def backend(self, value):
         """The backend property setter with validation."""
-        logger.trace("ActionRegistry.backend setter entry")
+        logger.debug("ActionRegistry.backend setter entry")
         if not isinstance(value, AsyncBackend):
             raise TypeError("Backend must implement AsyncBackend.")  # pragma: no cover
         self._backend = value  # Set the actual private attribute
-        logger.trace("ActionRegistry.backend setter exit")
+        logger.debug("ActionRegistry.backend setter exit")
 
     def _register_builtin_actions(self) -> None:
         """Register essential built-in actions."""
-        logger.trace("ActionRegistry._register_builtin_actions() entry")
+        logger.debug("ActionRegistry._register_builtin_actions() entry")
 
         # Help action - Both command and shortcut
         self.register_action(
@@ -143,7 +144,7 @@ class ActionRegistry(ActionHandler):
             )
         )
 
-        logger.trace("ActionRegistry._register_builtin_actions() exit")
+        logger.debug("ActionRegistry._register_builtin_actions() exit")
 
     def register_action(self, *args, **kwargs) -> None:
         """
@@ -155,7 +156,7 @@ class ActionRegistry(ActionHandler):
         Raises:
             ActionValidationError: If action is invalid or conflicts exist
         """
-        logger.trace("ActionRegistry.register_action() entry")
+        logger.debug("ActionRegistry.register_action() entry")
 
         action = None
         if args and isinstance(args[0], Action):
@@ -200,29 +201,29 @@ class ActionRegistry(ActionHandler):
         logger.debug(
             f"Registered action '{action.name}' with command='{action.command}' keys={action.keys}"
         )
-        logger.trace("ActionRegistry.register_action() exit")
+        logger.debug("ActionRegistry.register_action() exit")
 
     def get_action(self, name: str) -> Optional[Action]:
         """Get an action by name."""
-        logger.trace("ActionRegistry.get_action() entry")
+        logger.debug("ActionRegistry.get_action() entry")
         result = self.actions.get(name)
-        logger.trace("ActionRegistry.get_action() exit")
+        logger.debug("ActionRegistry.get_action() exit")
         return result
 
     def get_action_by_command(self, command: str) -> Optional[Action]:
         """Get an action by its command string."""
-        logger.trace("ActionRegistry.get_action_by_command() entry")
+        logger.debug("ActionRegistry.get_action_by_command() entry")
         action_name = self.command_map.get(command)
         result = self.actions.get(action_name) if action_name else None
-        logger.trace("ActionRegistry.get_action_by_command() exit")
+        logger.debug("ActionRegistry.get_action_by_command() exit")
         return result
 
     def get_action_by_keys(self, keys: str) -> Optional[Action]:
         """Get an action by its key combination."""
-        logger.trace("ActionRegistry.get_action_by_keys() entry")
+        logger.debug("ActionRegistry.get_action_by_keys() entry")
         action_name = self.key_map.get(keys)
         result = self.actions.get(action_name) if action_name else None
-        logger.trace("ActionRegistry.get_action_by_keys() exit")
+        logger.debug("ActionRegistry.get_action_by_keys() exit")
         return result
 
     def _resolve_handler(self, action: Action) -> Optional[Callable]:
@@ -235,22 +236,22 @@ class ActionRegistry(ActionHandler):
         Returns:
             Callable handler function or None for main-loop actions
         """
-        logger.trace("ActionRegistry._resolve_handler() entry")
+        logger.debug("ActionRegistry._resolve_handler() entry")
 
         if action.handler is None:
-            logger.trace("ActionRegistry._resolve_handler() exit - None handler")
+            logger.debug("ActionRegistry._resolve_handler() exit - None handler")
             return None
 
         # Check cache first
         cache_key = f"{action.name}:{action.handler}"
         if cache_key in self.handler_cache:
-            logger.trace("ActionRegistry._resolve_handler() exit - cached")
+            logger.debug("ActionRegistry._resolve_handler() exit - cached")
             return self.handler_cache[cache_key]
 
         # If already callable, use it
         if callable(action.handler):
             self.handler_cache[cache_key] = action.handler
-            logger.trace("ActionRegistry._resolve_handler() exit - callable")
+            logger.debug("ActionRegistry._resolve_handler() exit - callable")
             return action.handler
 
         # If string, try to import
@@ -260,7 +261,7 @@ class ActionRegistry(ActionHandler):
                 module = importlib.import_module(module_path)
                 handler_func = getattr(module, func_name)
                 self.handler_cache[cache_key] = handler_func
-                logger.trace("ActionRegistry._resolve_handler() exit - imported")
+                logger.debug("ActionRegistry._resolve_handler() exit - imported")
                 return handler_func
             except Exception as e:  # pragma: no cover
                 logger.error(
@@ -285,7 +286,7 @@ class ActionRegistry(ActionHandler):
         Raises:
             ActionError: If action is not found or execution fails
         """
-        logger.trace("ActionRegistry.execute_action() entry")
+        logger.debug("ActionRegistry.execute_action() entry")
 
         action = self.get_action(action_name)
         if not action:
@@ -293,7 +294,7 @@ class ActionRegistry(ActionHandler):
 
         if not action.enabled:
             logger.debug(f"Action '{action_name}' is disabled")
-            logger.trace("ActionRegistry.execute_action() exit - disabled")
+            logger.debug("ActionRegistry.execute_action() exit - disabled")
             return
 
         # Resolve handler
@@ -301,7 +302,7 @@ class ActionRegistry(ActionHandler):
         if handler is None:
             # Main loop actions (like exit/quit) return without execution
             logger.debug(f"Action '{action_name}' handled by main loop")
-            logger.trace("ActionRegistry.execute_action() exit - main loop")
+            logger.debug("ActionRegistry.execute_action() exit - main loop")
             return
 
         try:
@@ -310,11 +311,11 @@ class ActionRegistry(ActionHandler):
             # Execute handler synchronously
             # If handler needs async operations, it can handle them internally
             handler(context)
-            logger.trace("ActionRegistry.execute_action() exit - success")
+            logger.debug("ActionRegistry.execute_action() exit - success")
 
         except Exception as e:  # pragma: no cover
             logger.error(f"Error executing action '{action_name}': {e}")  # pragma: no cover
-            logger.trace("ActionRegistry.execute_action() exit - exception")
+            logger.debug("ActionRegistry.execute_action() exit - exception")
             raise ActionExecutionError(
                 f"Failed to execute action '{action_name}': {e}", action_name
             )  # pragma: no cover
@@ -326,13 +327,13 @@ class ActionRegistry(ActionHandler):
         Args:
             command_string: Full command string (e.g., '/help topic')
         """
-        logger.trace("ActionRegistry.handle_command() entry")
+        logger.debug("ActionRegistry.handle_command() entry")
         logger.debug(f"Handling command: {command_string}")
 
         # Parse command and arguments
         parts = command_string.strip().split()
         if not parts:
-            logger.trace("ActionRegistry.handle_command() exit - no parts")
+            logger.debug("ActionRegistry.handle_command() exit - no parts")
             return
 
         command = parts[0]
@@ -347,7 +348,7 @@ class ActionRegistry(ActionHandler):
         if not action:
             self.printer(f"Unknown command: {command}")
             self.printer("Use /help to see available commands.")
-            logger.trace("ActionRegistry.handle_command() exit - unknown command")
+            logger.debug("ActionRegistry.handle_command() exit - unknown command")
             return
 
         # Create context and execute
@@ -364,16 +365,16 @@ class ActionRegistry(ActionHandler):
 
         try:
             self.execute_action(action.name, context)
-            logger.trace("ActionRegistry.handle_command() exit - success")
+            logger.debug("ActionRegistry.handle_command() exit - success")
         except ActionError as e:  # pragma: no cover
             self.printer(f"Error: {e}")
-            logger.trace("ActionRegistry.handle_command() exit - action error")
+            logger.debug("ActionRegistry.handle_command() exit - action error")
         except Exception as e:  # pragma: no cover
             logger.error(
                 f"Unexpected error handling command '{command_string}': {e}"
             )  # pragma: no cover
             self.printer(f"An unexpected error occurred: {e}")
-            logger.trace("ActionRegistry.handle_command() exit - unexpected error")
+            logger.debug("ActionRegistry.handle_command() exit - unexpected error")
 
     def handle_shortcut(self, key_combo: str, event: Any, **kwargs) -> None:
         """
@@ -383,14 +384,14 @@ class ActionRegistry(ActionHandler):
             key_combo: Key combination string
             event: Key press event from prompt_toolkit
         """
-        logger.trace("ActionRegistry.handle_shortcut() entry")
+        logger.debug("ActionRegistry.handle_shortcut() entry")
         logger.debug(f"Handling shortcut: {key_combo}")
 
         # Look up action
         action = self.get_action_by_keys(key_combo)
         if not action:
             logger.debug(f"No action bound to key combination: {key_combo}")
-            logger.trace("ActionRegistry.handle_shortcut() exit - no action")
+            logger.debug("ActionRegistry.handle_shortcut() exit - no action")
             return
 
         # Create context and execute
@@ -406,41 +407,41 @@ class ActionRegistry(ActionHandler):
 
         try:
             self.execute_action(action.name, context)
-            logger.trace("ActionRegistry.handle_shortcut() exit - success")
+            logger.debug("ActionRegistry.handle_shortcut() exit - success")
         except ActionError as e:  # pragma: no cover
             self.printer(f"Error: {e}")
-            logger.trace("ActionRegistry.handle_shortcut() exit - action error")
+            logger.debug("ActionRegistry.handle_shortcut() exit - action error")
         except Exception as e:  # pragma: no cover
             logger.error(
                 f"Unexpected error handling shortcut '{key_combo}': {e}"
             )  # pragma: no cover
             self.printer(f"An unexpected error occurred: {e}")
-            logger.trace("ActionRegistry.handle_shortcut() exit - unexpected error")
+            logger.debug("ActionRegistry.handle_shortcut() exit - unexpected error")
 
     # ActionHandler protocol implementation
     def validate_action(self, action_name: str) -> bool:
         """Validate if an action is supported."""
-        logger.trace("ActionRegistry.validate_action() entry/exit")
+        logger.debug("ActionRegistry.validate_action() entry/exit")
         return action_name in self.actions
 
     def list_actions(self) -> List[str]:
         """Return a list of all available action names."""
-        logger.trace("ActionRegistry.list_actions() entry/exit")
+        logger.debug("ActionRegistry.list_actions() entry/exit")
         return list(self.actions.keys())
 
     def list_commands(self) -> List[str]:
         """Return a list of all available commands."""
-        logger.trace("ActionRegistry.list_commands() entry/exit")
+        logger.debug("ActionRegistry.list_commands() entry/exit")
         return list(self.command_map.keys())
 
     def list_shortcuts(self) -> List[str]:
         """Return a list of all available keyboard shortcuts."""
-        logger.trace("ActionRegistry.list_shortcuts() entry/exit")
+        logger.debug("ActionRegistry.list_shortcuts() entry/exit")
         return list(self.key_map.keys())
 
     def get_actions_by_category(self) -> Dict[str, List[Action]]:
         """Get actions organized by category."""
-        logger.trace("ActionRegistry.get_actions_by_category() entry")
+        logger.debug("ActionRegistry.get_actions_by_category() entry")
         categories = {}  # type: ignore[var-annotated]
         for action in self.actions.values():
             if action.hidden:
@@ -448,13 +449,13 @@ class ActionRegistry(ActionHandler):
             if action.category not in categories:
                 categories[action.category] = []
             categories[action.category].append(action)
-        logger.trace("ActionRegistry.get_actions_by_category() exit")
+        logger.debug("ActionRegistry.get_actions_by_category() exit")
         return categories
 
     # Built-in action handlers
     def _show_help(self, context: ActionContext) -> None:
         """Show help information."""
-        logger.trace("ActionRegistry._show_help() entry")
+        logger.debug("ActionRegistry._show_help() entry")
 
         if context.args and len(context.args) > 0:
             # Show help for specific action or command
@@ -476,11 +477,11 @@ class ActionRegistry(ActionHandler):
             # Show general help
             self._show_general_help(context)
 
-        logger.trace("ActionRegistry._show_help() exit")
+        logger.debug("ActionRegistry._show_help() exit")
 
     def _show_action_help(self, action: Action, context: ActionContext) -> None:
         """Show detailed help for a specific action."""
-        logger.trace("ActionRegistry._show_action_help() entry")
+        logger.debug("ActionRegistry._show_action_help() entry")
         # pragma: no cover
         context.printer(f"\n{action.description}")  # pragma: no cover
         context.printer(f"Category: {action.category}")
@@ -499,11 +500,11 @@ class ActionRegistry(ActionHandler):
             context.printer("Status: Disabled")  # pragma: no cover
         context.printer("")
 
-        logger.trace("ActionRegistry._show_action_help() exit")
+        logger.debug("ActionRegistry._show_action_help() exit")
 
     def _show_general_help(self, context: ActionContext) -> None:
         """Show general help with all actions organized by category."""
-        logger.trace("ActionRegistry._show_general_help() entry")
+        logger.debug("ActionRegistry._show_general_help() entry")
         # pragma: no cover
         context.printer("\nAvailable Actions:")  # pragma: no cover
         context.printer("=" * 50)
@@ -537,11 +538,11 @@ class ActionRegistry(ActionHandler):
         context.printer("Use '/shortcuts' to see only keyboard shortcuts.")  # pragma: no cover
         context.printer("")
 
-        logger.trace("ActionRegistry._show_general_help() exit")
+        logger.debug("ActionRegistry._show_general_help() exit")
 
     def _list_shortcuts(self, context: ActionContext) -> None:
         """List all keyboard shortcuts."""
-        logger.trace("ActionRegistry._list_shortcuts() entry")
+        logger.debug("ActionRegistry._list_shortcuts() entry")
         # pragma: no cover
         context.printer("\nKeyboard Shortcuts:")  # pragma: no cover
         context.printer("=" * 50)
@@ -561,4 +562,4 @@ class ActionRegistry(ActionHandler):
         # pragma: no cover
         context.printer("")
 
-        logger.trace("ActionRegistry._list_shortcuts() exit")
+        logger.debug("ActionRegistry._list_shortcuts() exit")
