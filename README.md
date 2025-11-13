@@ -275,7 +275,7 @@ asyncio.run(main())
 
 1. Copy an image to clipboard (screenshot, file, etc.)
 2. Type your message in the REPL
-3. Press **F6** or **Ctrl+Shift+V** to paste
+3. Press **F6** to paste
 4. Continue typing if needed
 5. Press **Alt+Enter** to send
 
@@ -410,7 +410,7 @@ python examples/image_paste_demo.py
 
 | Action | Command | Shortcuts | Description |
 |--------|---------|-----------|-------------|
-| **Paste** | `/paste-image` | `F6`, `Ctrl+Shift+V` | Paste image or text from clipboard |
+| **Paste** | `/paste-image` | `F6` | Paste image or text from clipboard |
 
 
 ## Keyboard Shortcuts

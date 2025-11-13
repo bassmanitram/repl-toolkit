@@ -239,7 +239,7 @@ def create_paste_image_action(enable_by_default: bool = True):
         handler=paste_image_handler,
         command="/paste-image",
         command_usage="/paste-image - Paste image or text from clipboard",
-        keys=["f6", "c-s-v"],
+        keys="f6",
         keys_description="Paste image or text from clipboard",
         enabled=enable_by_default,
     )

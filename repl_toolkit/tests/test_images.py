@@ -158,7 +158,7 @@ class TestPasteImageAction:
 
         assert action.name == "paste_image"
         assert action.command == "/paste-image"
-        assert action.keys == ["f6", "c-s-v"]
+        assert action.keys == "f6"
         assert action.handler is not None
 
     def test_paste_image_action_registered(self, mock_terminal_for_repl):
@@ -471,13 +471,11 @@ class TestImagePlaceholders:
         assert len(repl._image_buffer) == 2
 
     def test_paste_image_key_bindings(self, mock_terminal_for_repl):
-        """Test that paste_image has both F6 and Ctrl+Shift+V bindings."""
+        """Test that paste_image has both F6 bindings."""
         repl = AsyncREPL(enable_image_paste=True)
 
         # Both keys should be registered
         assert "f6" in repl.action_registry.key_map
-        assert "c-s-v" in repl.action_registry.key_map
 
         # Both should map to paste_image
         assert repl.action_registry.key_map["f6"] == "paste_image"
-        assert repl.action_registry.key_map["c-s-v"] == "paste_image"

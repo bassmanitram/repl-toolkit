@@ -9,7 +9,7 @@ Usage:
 1. Copy an image to your clipboard (screenshot, file, etc.)
 2. Run this script
 3. Type a message
-4. Press F6 or Ctrl+Shift+V (or type /paste-image) to add the image
+4. Press F6 (or type /paste-image) to add the image
 5. Press Alt+Enter to send
 
 The backend will receive both the text and image data.
@@ -74,7 +74,7 @@ async def main():
     print("Instructions:")
     print("  1. Copy an image to your clipboard")
     print("  2. Type your message")
-    print("  3. Press F6 or Ctrl+Shift+V to paste the image")
+    print("  3. Press F6 to paste the image")
     print("  4. Continue typing if desired")
     print("  5. Press Alt+Enter to send")
     print("\nCommands:")

@@ -251,7 +251,7 @@ class AsyncREPL:
         Parse key combination string into prompt_toolkit format.
 
         Args:
-            key_combo: Key combination (e.g., "F1", "ctrl-s", "alt-enter")
+            key_combo: Key combination (e.g., "F1", "ctrl-s", "c-s-v")
 
         Returns:
             Tuple of keys for prompt_toolkit
@@ -269,6 +269,13 @@ class AsyncREPL:
         # Handle modifier combinations
         if "-" in key_combo:
             parts = key_combo.split("-")
+
+            # Three-part combinations (e.g., c-s-v for Ctrl+Shift+V)
+            # Already in prompt_toolkit format
+            if len(parts) == 3:
+                logger.trace("AsyncREPL._parse_key_combination() exit - multi-mod combo")
+                return (key_combo,)
+
             if len(parts) == 2:
                 modifier, key = parts
 
