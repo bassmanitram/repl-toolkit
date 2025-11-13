@@ -37,7 +37,7 @@ pip install repl-toolkit
 **Dependencies:**
 - Python 3.8+
 - prompt-toolkit >= 3.0.0
-- loguru >= 0.5.0
+- pyclip >= 0.7.0
 
 ## Quick Start
 

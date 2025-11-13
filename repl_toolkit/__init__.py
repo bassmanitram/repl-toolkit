@@ -34,7 +34,7 @@ import logging
 # Applications using this library should configure their own handlers
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
 from .actions import Action, ActionContext, ActionRegistry
 from .async_repl import AsyncREPL, run_async_repl
