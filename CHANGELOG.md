@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2025-11-21
+
+### Breaking Changes
+
+**Error Handling**: Library now uses Python logging exclusively. Applications must configure logging to see errors.
+
+**Migration:** Add one line to your application:
+```python
+import logging
+logging.basicConfig(level=logging.WARNING)
+```
+
+**What changed:**
+- Removed direct console output from error handlers
+- ActionError → `logger.warning()`, Exception → `logger.exception()`
+
+**Why:** Follows Python library best practices. Applications control error visibility, formatting, and routing via logging configuration.
+
+**Control options:**
+```python
+logging.basicConfig(level=logging.WARNING)  # Show all
+logging.basicConfig(level=logging.ERROR)     # Critical only
+logging.getLogger('repl_toolkit').setLevel(logging.CRITICAL)  # Silent
+```
+
+See [Python logging docs](https://docs.python.org/3/library/logging.html) for details.
+
+### Changed
+
+- Error logging upgraded: `logger.error()` → `logger.exception()` (automatic tracebacks)
+
+### Improved
+
+- Better debugging with automatic tracebacks
+- Clean separation: library logs, application controls display
+- Flexible error handling for different use cases
+
+
 ## [1.3.0] - 2025-11-13
 
 ### Added
