@@ -4,6 +4,10 @@ Demo of image paste support in repl-toolkit.
 
 This example shows how to use the image paste feature to send images
 from clipboard along with text messages to your backend.
+import logging
+
+# Configure logging to see errors from repl_toolkit
+logging.basicConfig(level=logging.WARNING, format='%(levelname)s: %(message)s')
 
 Usage:
 1. Copy an image to your clipboard (screenshot, file, etc.)

@@ -8,6 +8,10 @@ the provided utility functions.
 
 import asyncio
 import base64
+import logging
+
+# Configure logging to see errors from repl_toolkit
+logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 
 from repl_toolkit import (
     AsyncREPL,

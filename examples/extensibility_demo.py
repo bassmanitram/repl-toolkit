@@ -11,6 +11,9 @@ This example shows how to extend ShellExpansionCompleter with custom behavior:
 import asyncio
 import logging
 
+# Configure logging to see errors from repl_toolkit
+logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
+
 from prompt_toolkit.completion import Completion
 from prompt_toolkit.formatted_text import FormattedText
 

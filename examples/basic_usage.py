@@ -7,8 +7,12 @@ and keyboard shortcuts using the action system with late backend binding.
 """
 
 import asyncio
+import logging
 import sys
 from pathlib import Path
+
+# Configure logging to see errors from repl_toolkit
+logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 
 # Add the repl_toolkit to path for the example
 sys.path.insert(0, str(Path(__file__).parent.parent))

@@ -132,6 +132,73 @@ Now you can:
 - Type `/clear` to clear the list
 - Type `/help` or press `F1` to see all commands
 
+## Error Handling
+
+REPL Toolkit uses Python's standard logging framework for all error reporting. This gives you full control over whether errors are displayed, how they're formatted, and where they're sent.
+
+**To see errors, configure logging in your application:**
+
+```python
+import asyncio
+import logging
+from repl_toolkit import run_async_repl
+
+# Configure logging to see errors
+logging.basicConfig(level=logging.WARNING, format='%(levelname)s: %(message)s')
+
+class MyBackend:
+    async def handle_input(self, user_input: str) -> bool:
+        print(f"You said: {user_input}")
+        return True
+
+asyncio.run(run_async_repl(backend=MyBackend()))
+```
+
+### Error Visibility Options
+
+**Show all errors (recommended default):**
+```python
+import logging
+logging.basicConfig(level=logging.WARNING)
+```
+
+**Show only critical errors:**
+```python
+import logging
+logging.basicConfig(level=logging.ERROR)
+```
+
+**Silent mode (suppress library errors):**
+```python
+import logging
+logging.getLogger('repl_toolkit').setLevel(logging.CRITICAL)
+```
+
+**Custom formatting:**
+```python
+import logging
+
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s: %(message)s'))
+
+logger = logging.getLogger('repl_toolkit')
+logger.addHandler(handler)
+logger.setLevel(logging.WARNING)
+```
+
+**Route to file:**
+```python
+import logging
+logging.basicConfig(
+    level=logging.WARNING,
+    filename='app.log',
+    format='%(asctime)s %(levelname)s: %(message)s'
+)
+```
+
+See Python's [logging documentation](https://docs.python.org/3/library/logging.html) for advanced configuration.
+
+
 ## Working with External Resources
 
 Many backends need database connections, API clients, or other resources. REPL Toolkit supports late binding - you create the REPL first, then provide the backend when resources are ready:

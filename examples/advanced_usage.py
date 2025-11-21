@@ -13,10 +13,14 @@ This example demonstrates advanced features including:
 
 import asyncio
 import json
+import logging
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
+
+# Configure logging to see errors from repl_toolkit
+logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 
 # Add the repl_toolkit to path for the example
 sys.path.insert(0, str(Path(__file__).parent.parent))

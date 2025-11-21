@@ -11,8 +11,12 @@ Try:
 """
 
 import asyncio
+import logging
 import sys
 from pathlib import Path
+
+# Configure logging to see errors from repl_toolkit
+logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))

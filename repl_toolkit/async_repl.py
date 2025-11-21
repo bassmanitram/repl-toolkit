@@ -234,9 +234,8 @@ class AsyncREPL:
                         triggered_by="shortcut",
                     )
                     self.action_registry.execute_action(action_name, context)
-                except Exception as e:
-                    logger.error(f"Error executing shortcut '{key_combo}': {e}")
-                    print(f"Error: {e}")
+                except Exception:
+                    logger.exception(f"Error executing shortcut '{key_combo}'")
 
             logger.debug(f"Registered shortcut '{key_combo}' -> '{action_name}'")
             logger.debug("AsyncREPL._register_shortcut() exit - success")
@@ -337,9 +336,8 @@ class AsyncREPL:
             except (KeyboardInterrupt, EOFError):
                 print()
                 break
-            except Exception as e:
-                logger.error(f"Error in REPL loop: {e}")
-                print(f"An error occurred: {e}", file=sys.stderr)
+            except Exception:
+                logger.exception("Error in REPL loop")
 
         logger.debug("AsyncREPL.run() exit")
 
@@ -422,8 +420,8 @@ class AsyncREPL:
                     await backend_task
                 except asyncio.CancelledError:
                     pass
-        except Exception as e:
-            print(f"\nAn error occurred: {e}")
+        except Exception:
+            logger.exception("Error during input processing")
             if backend_task and not backend_task.done():
                 backend_task.cancel()
                 try:

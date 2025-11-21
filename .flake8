@@ -17,3 +17,7 @@ exclude =
 per-file-ignores =
     examples/*.py: E402
     repl_toolkit/tests/*.py: E731, F841
+    repl_toolkit/__init__.py: E402
+    repl_toolkit/async_repl.py: E402
+    repl_toolkit/actions/registry.py: E402
+    repl_toolkit/headless_repl.py: E402

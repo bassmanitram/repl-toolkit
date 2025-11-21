@@ -6,7 +6,12 @@ This example demonstrates the auto-format detection and printing utilities
 that can automatically detect and apply HTML or ANSI formatting.
 """
 
+import logging
+
 from repl_toolkit import auto_format, create_auto_printer, detect_format_type, print_auto_formatted
+
+# Configure logging to see errors from repl_toolkit
+logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 
 
 def demo_detection():

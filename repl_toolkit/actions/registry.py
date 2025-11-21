@@ -367,13 +367,10 @@ class ActionRegistry(ActionHandler):
             self.execute_action(action.name, context)
             logger.debug("ActionRegistry.handle_command() exit - success")
         except ActionError as e:  # pragma: no cover
-            self.printer(f"Error: {e}")
+            logger.warning(f"Action error in command '{command_string}': {e}")
             logger.debug("ActionRegistry.handle_command() exit - action error")
-        except Exception as e:  # pragma: no cover
-            logger.error(
-                f"Unexpected error handling command '{command_string}': {e}"
-            )  # pragma: no cover
-            self.printer(f"An unexpected error occurred: {e}")
+        except Exception:  # pragma: no cover
+            logger.exception(f"Unexpected error handling command '{command_string}'")
             logger.debug("ActionRegistry.handle_command() exit - unexpected error")
 
     def handle_shortcut(self, key_combo: str, event: Any, **kwargs) -> None:
@@ -409,13 +406,10 @@ class ActionRegistry(ActionHandler):
             self.execute_action(action.name, context)
             logger.debug("ActionRegistry.handle_shortcut() exit - success")
         except ActionError as e:  # pragma: no cover
-            self.printer(f"Error: {e}")
+            logger.warning(f"Action error in shortcut '{key_combo}': {e}")
             logger.debug("ActionRegistry.handle_shortcut() exit - action error")
-        except Exception as e:  # pragma: no cover
-            logger.error(
-                f"Unexpected error handling shortcut '{key_combo}': {e}"
-            )  # pragma: no cover
-            self.printer(f"An unexpected error occurred: {e}")
+        except Exception:  # pragma: no cover
+            logger.exception(f"Unexpected error handling shortcut '{key_combo}'")
             logger.debug("ActionRegistry.handle_shortcut() exit - unexpected error")
 
     # ActionHandler protocol implementation

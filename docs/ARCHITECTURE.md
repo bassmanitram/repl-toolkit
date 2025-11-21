@@ -465,9 +465,52 @@ The protocol-based design enables:
 
 ### Logging Integration
 
-- **Trace Logging**: Entry/exit logging for debugging
-- **Structured Logging**: Consistent log format with loguru
-- **Performance Logging**: Optional performance metrics
-- **Error Logging**: Comprehensive error context
+repl-toolkit follows Python library best practices for error handling:
+
+**Error Reporting Strategy:**
+- **All errors logged** via Python's logging framework
+- **No direct output** to stdout/stderr (applications control display)
+- **Two error levels:**
+  - `WARNING`: Expected failures (ActionError) - validation failures, invalid commands
+  - `ERROR`: Unexpected failures (Exception) - bugs, system errors, includes traceback
+
+**Trace Logging:**
+- Entry/exit logging at `DEBUG` level for execution flow analysis
+- Extensive tracing throughout the codebase for debugging
+
+**Application Control:**
+
+Applications configure logging to control error visibility:
+```python
+# See all errors
+logging.basicConfig(level=logging.WARNING)
+
+# See only critical errors
+logging.basicConfig(level=logging.ERROR)
+
+# Suppress errors
+logging.getLogger('repl_toolkit').setLevel(logging.CRITICAL)
+```
+
+**Example Configuration:**
+```python
+import logging
+
+# Configure repl_toolkit logging
+logging.basicConfig(
+    level=logging.WARNING,
+    format='%(levelname)s: %(message)s',
+    handlers=[logging.StreamHandler()]
+)
+
+# Optionally adjust level for debugging
+# logging.getLogger('repl_toolkit').setLevel(logging.DEBUG)
+```
+
+This approach allows applications to:
+- Control error visibility (show/hide)
+- Customize error formatting
+- Route errors to different outputs (files, handlers, services)
+- Filter by severity or component
 
 This architecture provides a solid foundation for building rich, interactive CLI applications with modern Python best practices, supporting both interactive and automated use cases.
