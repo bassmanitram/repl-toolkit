@@ -445,13 +445,13 @@ class TestPrefixCompleter:
         assert completions[0].text == "/help"
         assert completions[0].start_position == -3
 
-    def test_command_after_whitespace(self):
-        """Test command completion after whitespace."""
-        document = Document(text="some text /he", cursor_position=13)
+    def test_no_completion_mid_sentence(self):
+        """Test that commands don't complete in middle of sentence."""
+        document = Document(text="Please type /he for info", cursor_position=19)
         completions = list(self.completer.get_completions(document, self.complete_event))
 
-        assert len(completions) == 1
-        assert completions[0].text == "/help"
+        # Should NOT complete when command is mid-sentence
+        assert len(completions) == 0
 
     def test_no_completion_in_middle_of_text(self):
         """Test no completion when / is in middle of word."""
@@ -519,6 +519,14 @@ class TestPrefixCompleter:
     def test_command_after_newline(self):
         """Test command completion after newline."""
         document = Document(text="line1\n/he", cursor_position=9)
+        completions = list(self.completer.get_completions(document, self.complete_event))
+
+        assert len(completions) == 1
+        assert completions[0].text == "/help"
+
+    def test_command_after_newline_with_spaces(self):
+        """Test command completion after newline with leading spaces."""
+        document = Document(text="line1\n  /he", cursor_position=11)
         completions = list(self.completer.get_completions(document, self.complete_event))
 
         assert len(completions) == 1

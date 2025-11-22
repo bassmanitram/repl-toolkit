@@ -14,18 +14,18 @@ class PrefixCompleter(Completer):
     Completer for static string matching with optional prefix character.
 
     This completer matches strings from a predefined list. If a prefix is specified,
-    it only completes after that prefix character at word boundaries, avoiding false
-    positives in paths or other contexts.
+    it only completes when the prefix appears at the start of input or at the start
+    of a new line, avoiding false positives in mid-sentence text.
 
     Args:
         words: List of words to complete
         prefix: Optional prefix character (e.g., '/', '@', '#')
-                If provided, only completes after this prefix at word boundaries.
+                If provided, only completes when prefix is at line start.
                 If None, completes anywhere (standard word completion).
         ignore_case: Case-insensitive matching (default: True)
 
     Examples:
-        >>> # Slash commands
+        >>> # Slash commands (only at line start)
         >>> completer = PrefixCompleter(['/help', '/exit', '/quit'], prefix='/')
         >>> # Or let it add the prefix
         >>> completer = PrefixCompleter(['help', 'exit', 'quit'], prefix='/')
@@ -53,10 +53,10 @@ class PrefixCompleter(Completer):
 
         # Build pattern for matching
         if prefix:
-            # Match prefix at start of line or after whitespace/newline
-            # This prevents matching "/" in paths like "path/to/file"
+            # Match prefix only at start of input or after newline (with optional whitespace)
+            # This prevents matching in middle of sentences or in paths like "path/to/file"
             escaped_prefix = re.escape(prefix)
-            self.pattern = re.compile(rf"(?:^|[\s\n])({escaped_prefix}\S*)$")
+            self.pattern = re.compile(rf"(?:^|(?<=\n)\s*)({escaped_prefix}\S*)$")
         else:
             # No prefix - match word at cursor
             self.pattern = re.compile(r"(\S*)$")
