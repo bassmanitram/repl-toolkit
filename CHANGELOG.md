@@ -10,8 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **PrefixCompleter**: Fixed command completion triggering mid-sentence. Commands now only complete at line start or after newlines, not after spaces within text.
-  - Changed pattern from `(?:^|[\s\n])` to `(?:^|(?<=\n)\s*)` 
-  - Prevents completion in contexts like "Please type /help" 
+  - Changed pattern from `(?:^|[\s\n])` to `(?:^|(?<=\n)\s*)`
+  - Prevents completion in contexts like "Please type /help"
   - Still completes correctly at line start and after newlines
 
 
