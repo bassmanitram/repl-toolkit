@@ -1,28 +1,35 @@
 repos:
+  # Standard pre-commit hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v5.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+      - id: check-toml
+      - id: check-json
       - id: check-added-large-files
       - id: check-merge-conflict
-      - id: check-toml
+      - id: debug-statements
+      - id: check-docstring-first
 
+  # Black code formatting
   - repo: https://github.com/psf/black
-    rev: 23.12.1
+    rev: 24.10.0
     hooks:
       - id: black
-        language_version: python3.10
+        language_version: python3
 
-  - repo: https://github.com/PyCQA/isort
+  # isort import sorting
+  - repo: https://github.com/pycqa/isort
     rev: 5.13.2
     hooks:
       - id: isort
-        args: ["--profile", "black"]
+        args: [--profile=black]
 
-  - repo: https://github.com/PyCQA/flake8
-    rev: 7.0.0
+  # flake8 linting
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.1.1
     hooks:
       - id: flake8
-        args: ['--max-line-length=100', '--extend-ignore=E203,W503,F401,F541,E501,E402,E731,F841']
+        args: [--max-line-length=100, --extend-ignore=E203,W503]
