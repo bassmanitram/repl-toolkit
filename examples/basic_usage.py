@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 # Add the repl_toolkit to path for the example
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from repl_toolkit import Action, ActionContext, ActionRegistry, AsyncREPL, run_async_repl
+from repl_toolkit import ActionContext, ActionRegistry, AsyncREPL, run_async_repl
 
 
 class ExampleBackend:
@@ -137,7 +137,7 @@ class ExampleActionRegistry(ActionRegistry):
 
         # Simulate saving
         print(f"Saving conversation to '{filename}'...")
-        print(f"Conversation saved!")
+        print("Conversation saved!")
 
         if context.triggered_by == "shortcut":
             print("   (Triggered by Ctrl+S)")

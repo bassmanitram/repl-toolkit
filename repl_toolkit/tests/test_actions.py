@@ -10,7 +10,6 @@ from repl_toolkit.actions import (
     Action,
     ActionContext,
     ActionError,
-    ActionExecutionError,
     ActionRegistry,
     ActionValidationError,
 )

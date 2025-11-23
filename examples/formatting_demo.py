@@ -50,7 +50,7 @@ def demo_auto_format():
         formatted = auto_format(text)
         print(f"\nInput: {repr(text)}")
         print(f"Type: {type(formatted).__name__}")
-        print(f"Output: ", end="")
+        print("Output: ", end="")
         print_auto_formatted(text)
 
 

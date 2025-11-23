@@ -2,8 +2,6 @@
 
 import time
 
-import pytest
-
 from repl_toolkit import (
     ImageData,
     ParsedContent,

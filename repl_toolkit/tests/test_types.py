@@ -2,7 +2,6 @@
 Tests for protocol compliance and type checking.
 """
 
-from typing import Protocol
 from unittest.mock import AsyncMock, Mock
 
 import pytest

@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 # Add the repl_toolkit to path for the example
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from repl_toolkit import Action, ActionContext, ActionRegistry, run_headless_mode
+from repl_toolkit import ActionContext, ActionRegistry, run_headless_mode
 
 
 class BatchBackend:
@@ -96,12 +96,12 @@ class HeadlessActionRegistry(ActionRegistry):
         """Show processing statistics."""
         backend = context.backend
         if backend:
-            print(f"Processing Statistics:")
+            print("Processing Statistics:")
             print(f"  Batches processed: {backend.batch_count}")
             print(f"  Total items: {len(backend.processed_items)}")
 
             if context.headless_mode:
-                print(f"  Running in headless mode")
+                print("  Running in headless mode")
                 if hasattr(context, "buffer") and context.buffer:
                     print(f"  Current buffer: {len(context.buffer)} characters")
         else:

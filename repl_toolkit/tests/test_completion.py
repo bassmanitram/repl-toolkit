@@ -3,8 +3,7 @@ Tests for completion utilities.
 """
 
 import os
-import sys
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 from prompt_toolkit.document import Document

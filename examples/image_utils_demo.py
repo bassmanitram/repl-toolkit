@@ -13,13 +13,7 @@ import logging
 # Configure logging to see errors from repl_toolkit
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 
-from repl_toolkit import (
-    AsyncREPL,
-    ImageData,
-    iter_content_parts,
-    parse_image_references,
-    reconstruct_message,
-)
+from repl_toolkit import ImageData, iter_content_parts, parse_image_references, reconstruct_message
 
 
 class SimpleParsingBackend:

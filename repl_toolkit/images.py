@@ -1,7 +1,6 @@
 """Image handling support for repl_toolkit."""
 
 import re
-import time
 from dataclasses import dataclass
 from typing import Callable, Dict, Iterator, List, Optional, Set, Tuple
 

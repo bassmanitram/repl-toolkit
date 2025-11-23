@@ -3,7 +3,6 @@ Pytest configuration and fixtures for repl-toolkit tests.
 """
 
 import sys
-from unittest.mock import Mock
 
 import pytest
 from prompt_toolkit.input import DummyInput

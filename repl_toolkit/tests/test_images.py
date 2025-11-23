@@ -1,7 +1,7 @@
 """Tests for image handling support in repl_toolkit."""
 
 import time
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 

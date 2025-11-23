@@ -25,7 +25,7 @@ logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 # Add the repl_toolkit to path for the example
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from repl_toolkit import Action, ActionContext, ActionRegistry, AsyncREPL, run_async_repl
+from repl_toolkit import ActionContext, ActionRegistry, run_async_repl
 from repl_toolkit.actions import ActionError
 
 

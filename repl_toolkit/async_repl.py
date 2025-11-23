@@ -8,7 +8,6 @@ robust cancellation of long-running tasks.
 
 import asyncio
 import logging
-import sys
 import time
 from pathlib import Path
 from typing import Dict, Optional
@@ -383,7 +382,9 @@ class AsyncREPL:
                     cancel_future.set_result(None)
                 event.app.exit(exception=KeyboardInterrupt, style="class:aborting")
 
-            cancel_app = Application(key_bindings=kb, output=DummyOutput(), input=create_input())  # type: ignore[var-annotated]
+            cancel_app = Application(
+                key_bindings=kb, output=DummyOutput(), input=create_input()
+            )  # type: ignore[var-annotated]
 
             # Prepare kwargs for backend - only pass images if present
             kwargs = {}
@@ -391,7 +392,9 @@ class AsyncREPL:
                 kwargs["images"] = self._image_buffer
 
             backend_task = asyncio.create_task(backend.handle_input(user_input, **kwargs))
-            listener_task = asyncio.create_task(cancel_app.run_async())  # type: ignore[attr-defined]
+            listener_task = asyncio.create_task(
+                cancel_app.run_async()  # type: ignore[attr-defined]
+            )
             print(THINKING)
 
             done, pending = await asyncio.wait(
