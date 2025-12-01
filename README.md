@@ -1,11 +1,14 @@
 # REPL Toolkit
 
-[![Tests](https://github.com/bassmanitram/repl-toolkit/workflows/Test/badge.svg?branch=main)](https://github.com/bassmanitram/repl-toolkit/actions/workflows/test.yml)
-[![Lint](https://github.com/bassmanitram/repl-toolkit/workflows/Lint/badge.svg?branch=main)](https://github.com/bassmanitram/repl-toolkit/actions/workflows/lint.yml)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![PyPI version](https://badge.fury.io/py/repl-toolkit.svg)](https://badge.fury.io/py/repl-toolkit)
-
 Build interactive command-line applications with async Python. Create REPLs (Read-Eval-Print Loops) that feel like modern chat interfaces, complete with keyboard shortcuts, command history, and clipboard support.
+
+[![Tests](https://github.com/bassmanitram/repl-toolkit/actions/workflows/test.yml/badge.svg)](https://github.com/bassmanitram/repl-toolkit/actions/workflows/test.yml)
+[![Lint](https://github.com/bassmanitram/repl-toolkit/actions/workflows/lint.yml/badge.svg)](https://github.com/bassmanitram/repl-toolkit/actions/workflows/lint.yml)
+[![Code Quality](https://github.com/bassmanitram/repl-toolkit/actions/workflows/quality.yml/badge.svg)](https://github.com/bassmanitram/repl-toolkit/actions/workflows/quality.yml)
+[![Examples](https://github.com/bassmanitram/repl-toolkit/actions/workflows/examples.yml/badge.svg)](https://github.com/bassmanitram/repl-toolkit/actions/workflows/examples.yml)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![PyPI version](https://img.shields.io/pypi/v/repl-toolkit.svg)](https://pypi.org/project/repl-toolkit/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## What is this for?
 
