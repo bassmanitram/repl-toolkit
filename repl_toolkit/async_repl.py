@@ -366,7 +366,7 @@ class AsyncREPL:
         logger.debug("AsyncREPL._process_input() entry")
 
         cancel_future = asyncio.Future()  # type: ignore[var-annotated]
-        cancel_app = None
+        cancel_app = None  # type: ignore[var-annotated]
         listener_task = None
         backend_task = None
 
