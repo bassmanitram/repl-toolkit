@@ -1,142 +1,127 @@
 # REPL Toolkit
 
-[![Tests](https://github.com/bassmanitram/repl-toolkit/actions/workflows/test.yml/badge.svg)](https://github.com/bassmanitram/repl-toolkit/actions/workflows/test.yml)
-[![Lint](https://github.com/bassmanitram/repl-toolkit/actions/workflows/lint.yml/badge.svg)](https://github.com/bassmanitram/repl-toolkit/actions/workflows/lint.yml)
-[![Code Quality](https://github.com/bassmanitram/repl-toolkit/actions/workflows/quality.yml/badge.svg)](https://github.com/bassmanitram/repl-toolkit/actions/workflows/quality.yml)
-[![Examples](https://github.com/bassmanitram/repl-toolkit/actions/workflows/examples.yml/badge.svg)](https://github.com/bassmanitram/repl-toolkit/actions/workflows/examples.yml)
+[![Tests](https://github.com/bassmanitram/repl-toolkit/workflows/Test/badge.svg?branch=main)](https://github.com/bassmanitram/repl-toolkit/actions/workflows/test.yml)
+[![Lint](https://github.com/bassmanitram/repl-toolkit/workflows/Lint/badge.svg?branch=main)](https://github.com/bassmanitram/repl-toolkit/actions/workflows/lint.yml)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![PyPI version](https://img.shields.io/pypi/v/repl-toolkit.svg)](https://pypi.org/project/repl-toolkit/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PyPI version](https://badge.fury.io/py/repl-toolkit.svg)](https://badge.fury.io/py/repl-toolkit)
 
 Build interactive command-line applications with async Python. Create REPLs (Read-Eval-Print Loops) that feel like modern chat interfaces, complete with keyboard shortcuts, command history, and clipboard support.
 
 ## What is this for?
 
-You're building a CLI tool that needs to:
-- Accept user input interactively (like a chat bot, debugger, or query tool)
+Build interactive terminal apps where users type messages and get responses - like chat bots, database queries, or system monitoring tools. REPL Toolkit handles the terminal UI, keyboard shortcuts, and command routing so you focus on your application's logic.
+
 - Support both typed commands (`/help`, `/save`) and keyboard shortcuts (`F1`, `Ctrl+S`)
-- Run async operations without blocking the interface
-- Handle resources that need context managers (database connections, API clients)
-- Paste images from clipboard into your application
-- Work in both interactive mode and headless/batch mode
+- Works with async backends (API calls, database queries, etc.)
+- Handle images from clipboard
+- Full customization of commands and shortcuts
 
-REPL Toolkit handles the terminal UI, input management, and action routing so you can focus on your application logic.
+## Quick Start
 
-## Installation
+Install with pip:
 
 ```bash
 pip install repl-toolkit
 ```
 
-**Requirements**: Python 3.8+
-
-## Your First REPL in 10 Lines
+Create a simple echo bot:
 
 ```python
 import asyncio
-from repl_toolkit import run_async_repl
+from repl_toolkit import AsyncREPL
 
 class EchoBot:
     async def handle_input(self, user_input: str) -> bool:
         print(f"You said: {user_input}")
         return True
 
-asyncio.run(run_async_repl(backend=EchoBot()))
+async def main():
+    backend = EchoBot()
+    repl = AsyncREPL()
+    await repl.run(backend)
+
+asyncio.run(main())
 ```
 
 Run it:
 ```bash
-$ python my_repl.py
-User: hello
-You said: hello
-User:
+python echo_bot.py
 ```
 
-Press `Ctrl+D` or type `/exit` to quit. Press `F1` for help.
-
-## How It Works
-
-You provide a **backend** class with a `handle_input()` method. REPL Toolkit:
-1. Shows a prompt and waits for user input
+Now you have an interactive chat interface with:
+1. Multiline input (Enter for new line, Alt+Enter to send)
 2. Handles special commands (`/help`, `/exit`) and keyboard shortcuts (`F1`, `Ctrl+C`)
-3. Calls your `handle_input()` method with the text
-4. Repeats
+3. Command history (Up/Down arrows)
+4. Async support for API calls or other I/O
 
-Your backend can be anything: a chatbot, a database query tool, a game, a debugger, etc.
-
-## Adding Custom Commands and Shortcuts
+## Real Example: Todo List
 
 Let's make a todo list app with commands and keyboard shortcuts:
 
 ```python
 import asyncio
-from repl_toolkit import AsyncREPL, ActionRegistry
+from repl_toolkit import AsyncREPL, ActionRegistry, Action, ActionContext
 
 class TodoBackend:
     def __init__(self):
         self.todos = []
 
     async def handle_input(self, user_input: str) -> bool:
-        # Add user input as a todo item
         self.todos.append(user_input)
-        print(f"✓ Added: {user_input}")
+        print(f"Added: {user_input}")
         return True
 
-class TodoActions(ActionRegistry):
-    def __init__(self):
-        super().__init__()
+def setup_actions(backend):
+    """Create actions for todo management."""
+    registry = ActionRegistry()
 
-        # Command + keyboard shortcut
-        self.register_action(
-            name="show_list",
-            description="Show all todos",
-            category="Todos",
-            handler=self._show_list,
-            command="/list",
-            keys="F2"
-        )
-
-        # Command only
-        self.register_action(
-            name="clear_all",
-            description="Clear all todos",
-            category="Todos",
-            handler=self._clear_all,
-            command="/clear"
-        )
-
-    def _show_list(self, context):
-        backend = context.backend
+    # List todos with F2 or /list
+    def list_handler(context: ActionContext):
         if not backend.todos:
             print("No todos yet!")
         else:
-            print(f"\n{len(backend.todos)} todos:")
+            print("\nTodos:")
             for i, todo in enumerate(backend.todos, 1):
                 print(f"  {i}. {todo}")
 
-    def _clear_all(self, context):
-        backend = context.backend
-        count = len(backend.todos)
+    registry.register_action(Action(
+        name="list_todos",
+        description="Show all todos",
+        handler=list_handler,
+        keys="F2",
+        command="/list",
+    ))
+
+    # Clear list
+    def clear_handler(context: ActionContext):
         backend.todos.clear()
-        print(f"Cleared {count} todos")
+        print("Cleared all todos!")
+
+    registry.register_action(Action(
+        name="clear_todos",
+        description="Clear all todos",
+        handler=clear_handler,
+        command="/clear"
+    ))
+
+    return registry
 
 async def main():
-    actions = TodoActions()
     backend = TodoBackend()
-    repl = AsyncREPL(
-        action_registry=actions,
-        prompt_string="Todo: "
-    )
-    await repl.run(backend)
+    actions = setup_actions(backend)
+    repl = AsyncREPL(action_registry=actions)
+    await repl.run(backend, "Todo list ready! Type something to add a todo.")
 
 asyncio.run(main())
 ```
 
-Now you can:
+Usage:
 - Type anything to add a todo
 - Type `/list` or press `F2` to see all todos
 - Type `/clear` to clear the list
 - Type `/help` or press `F1` to see all commands
+- Commands execute immediately when you press Enter
+- For normal text, press Alt+Enter to send
 
 ## Error Handling
 
@@ -145,99 +130,51 @@ REPL Toolkit uses Python's standard logging framework for all error reporting. T
 **To see errors, configure logging in your application:**
 
 ```python
-import asyncio
 import logging
-from repl_toolkit import run_async_repl
 
-# Configure logging to see errors
-logging.basicConfig(level=logging.WARNING, format='%(levelname)s: %(message)s')
+# Option 1: Simple setup - show all errors
+logging.basicConfig(level=logging.WARNING)
 
-class MyBackend:
-    async def handle_input(self, user_input: str) -> bool:
-        print(f"You said: {user_input}")
-        return True
+# Option 2: Custom format
+logging.basicConfig(
+    level=logging.WARNING,
+    format='%(levelname)s: %(message)s'
+)
 
-asyncio.run(run_async_repl(backend=MyBackend()))
+# Option 3: File output
+logging.basicConfig(
+    filename='repl.log',
+    level=logging.DEBUG
+)
+
+# Option 4: Detailed control
+logger = logging.getLogger('repl_toolkit')
+logger.setLevel(logging.WARNING)
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+logger.addHandler(handler)
 ```
 
-### Error Visibility Options
+**What gets logged:**
+- `ERROR`: Action execution failures, clipboard errors, critical issues
+- `WARNING`: Non-critical issues (missing dependencies, invalid configs)
+- `DEBUG`: Detailed execution flow (useful for troubleshooting)
 
-**Show all errors (recommended default):**
+**Production recommendation:**
 ```python
-import logging
+# Show warnings and errors, hide debug details
 logging.basicConfig(level=logging.WARNING)
 ```
 
-**Show only critical errors:**
+**Development recommendation:**
 ```python
-import logging
-logging.basicConfig(level=logging.ERROR)
+# See everything for troubleshooting
+logging.basicConfig(level=logging.DEBUG, format='%(name)s: %(message)s')
 ```
 
-**Silent mode (suppress library errors):**
-```python
-import logging
-logging.getLogger('repl_toolkit').setLevel(logging.CRITICAL)
-```
+If you don't configure logging, errors will be silent (Python's default behavior).
 
-**Custom formatting:**
-```python
-import logging
-
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s: %(message)s'))
-
-logger = logging.getLogger('repl_toolkit')
-logger.addHandler(handler)
-logger.setLevel(logging.WARNING)
-```
-
-**Route to file:**
-```python
-import logging
-logging.basicConfig(
-    level=logging.WARNING,
-    filename='app.log',
-    format='%(asctime)s %(levelname)s: %(message)s'
-)
-```
-
-See Python's [logging documentation](https://docs.python.org/3/library/logging.html) for advanced configuration.
-
-
-## Working with External Resources
-
-Many backends need database connections, API clients, or other resources. REPL Toolkit supports late binding - you create the REPL first, then provide the backend when resources are ready:
-
-```python
-import asyncio
-from repl_toolkit import AsyncREPL
-
-class DatabaseBackend:
-    def __init__(self, db):
-        self.db = db
-
-    async def handle_input(self, user_input: str) -> bool:
-        result = await self.db.query(user_input)
-        print(f"Result: {result}")
-        return True
-
-async def main():
-    # Create REPL before database is available
-    repl = AsyncREPL(prompt_string="SQL> ")
-
-    # Connect to database in context manager
-    async with database.connect() as db:
-        backend = DatabaseBackend(db)
-        # Now run REPL with connected backend
-        await repl.run(backend, "Connected to database!")
-
-asyncio.run(main())
-```
-
-This pattern works great with context managers, connection pools, and any resource that needs proper setup/teardown.
-
-## Pasting from Clipboard
+## Image Support
 
 Your REPL can accept text and images from the clipboard. Users press `F6` to paste:
 
@@ -270,7 +207,7 @@ Text handling is as expected.
 With images, users can:
 1. Copy an image to clipboard (screenshot, copy from browser, etc.)
 2. Type their message in the REPL
-3. Press `F6` to insert the image
+3. Press `F6` or type `/paste` to insert the image
 4. Press `Alt+Enter` to send
 
 The image appears as `{{image:img_001}}` in the text, and your backend receives both the text and the actual image data.
@@ -279,737 +216,474 @@ You then need to _process_ the image in whatever way your application needs to:
 
 ### Processing Images
 
-The toolkit provides helpers for parsing messages with images:
-
 ```python
-from repl_toolkit import iter_content_parts
+from repl_toolkit import parse_image_references, iter_content_parts
 
-async def handle_input(self, user_input: str, images=None) -> bool:
-    # Iterate through text and images in order
-    for content, image in iter_content_parts(user_input, images):
-        if image:
-            # Process image
-            await api.upload_image(image.data, image.media_type)
-        elif content:
-            # Process text
-            await api.send_text(content)
+class SmartBackend:
+    async def handle_input(self, user_input: str, images=None) -> bool:
+        # Option 1: Simple check
+        if images:
+            print(f"Got {len(images)} images")
 
-    return True
+        # Option 2: Parse placeholders
+        parsed = parse_image_references(user_input)
+        print(f"Text references these images: {parsed.image_ids}")
+
+        # Option 3: Iterate through message parts
+        for content, image in iter_content_parts(user_input, images):
+            if image:
+                # Process image
+                print(f"Image: {len(image.data)} bytes of {image.media_type}")
+                # save_image(image.data)
+                # upload_to_api(image.data, image.media_type)
+            elif content:
+                # Process text
+                print(f"Text: {content}")
+
+        return True
 ```
 
-Supported formats: PNG, JPEG, GIF, WebP, BMP
+**Real-world examples:**
+- **Claude/ChatGPT clients** - Send images to multimodal AI APIs
+- **Support tools** - Users paste screenshots with bug reports
+- **Documentation** - Generate docs with embedded images
+- **Data annotation** - Label images with text descriptions
 
-### Image Utility Functions
+See [examples/image_paste_demo.py](examples/image_paste_demo.py) for a complete working example.
 
-The toolkit provides several utilities to work with image placeholders and data:
+## Tab Completion
 
-#### `parse_image_references(text)`
-
-Parse text to find all image placeholders and extract their structure:
-
-```python
-from repl_toolkit.images import parse_image_references
-
-text = "Look at {{image:img_001}} and {{image:img_002}}"
-result = parse_image_references(text)
-
-# result.image_ids is a set of image IDs found
-print(result.image_ids)  # {'img_001', 'img_002'}
-
-# result.parts is a list of (text, image_id) tuples
-# Text parts have image_id=None, image parts have text=""
-for text_part, img_id in result.parts:
-    if img_id:
-        print(f"Image placeholder: {img_id}")
-    else:
-        print(f"Text: {text_part}")
-```
-
-#### `iter_content_parts(text, images)`
-
-Iterate through text and images in the order they appear:
+Add tab completion for commands and custom values:
 
 ```python
-from repl_toolkit.images import iter_content_parts
+from repl_toolkit import AsyncREPL, PrefixCompleter
 
-async def handle_input(self, user_input: str, images=None) -> bool:
-    # Process content in order
-    for content, image in iter_content_parts(user_input, images):
-        if image:
-            # This is an image - image is an ImageData object
-            print(f"Image: {image.media_type}, {len(image.data)} bytes")
-            await upload_to_api(image.data, image.media_type)
-        elif content:
-            # This is text
-            print(f"Text: {content}")
-            await send_text(content)
+# Complete slash commands
+completer = PrefixCompleter(["/help", "/save", "/load", "/exit"])
 
-    return True
+# Or complete custom values
+completer = PrefixCompleter(["apple", "banana", "cherry"])
+
+repl = AsyncREPL(completer=completer)
 ```
 
-#### `reconstruct_message(text, images, formatter)`
+**Features:**
+- Complete commands at line start or after newline
+- Won't complete mid-sentence (e.g., won't complete in "Please type /help")
+- Prefix-only matching (no fuzzy search)
 
-Transform a message with image placeholders into any format:
+See [repl_toolkit/completion/README.md](repl_toolkit/completion/README.md) for advanced completion features including shell command expansion and environment variables.
 
-```python
-from repl_toolkit.images import reconstruct_message
-import base64
+## Headless Mode
 
-def format_for_api(content, image):
-    """Convert text and images to API format."""
-    if image:
-        # Format image for API
-        encoded = base64.b64encode(image.data).decode()
-        return {
-            'type': 'image',
-            'source': {
-                'type': 'base64',
-                'media_type': image.media_type,
-                'data': encoded
-            }
-        }
-    else:
-        # Format text for API
-        return {
-            'type': 'text',
-            'text': content
-        }
-
-# Reconstruct the entire message
-api_message = []
-text = "Here's the image: {{image:img_001}}"
-for content, image in iter_content_parts(text, images):
-    api_message.append(format_for_api(content, image))
-
-# Or use reconstruct_message for string output
-def to_markdown(content, image):
-    if image:
-        return f"![image](data:{image.media_type};base64,...)"
-    return content
-
-markdown = reconstruct_message(text, images, to_markdown)
-```
-
-#### `detect_media_type(data)`
-
-Detect image format from raw bytes:
-
-```python
-from repl_toolkit.images import detect_media_type
-
-# Read image file
-with open('image.png', 'rb') as f:
-    img_bytes = f.read()
-
-media_type = detect_media_type(img_bytes)
-print(media_type)  # "image/png"
-```
-
-Detects: PNG, JPEG, GIF, WebP, BMP by examining magic bytes.
-
-#### ImageData Object
-
-When your backend receives images, each is an `ImageData` object:
-
-```python
-class ImageData:
-    data: bytes           # Raw image bytes
-    media_type: str       # MIME type like "image/png"
-    timestamp: float      # When the image was captured
-```
-
-Access the data:
-
-```python
-async def handle_input(self, user_input: str, images=None) -> bool:
-    if images:
-        for img_id, img_data in images.items():
-            # Save to file
-            with open(f'{img_id}.png', 'wb') as f:
-                f.write(img_data.data)
-
-            # Upload to API
-            await api.upload(
-                data=img_data.data,
-                content_type=img_data.media_type
-            )
-
-    return True
-```
-
-
-## Running Without a Terminal (Headless Mode)
-
-Use your REPL in scripts, tests, or automation:
+Process input from stdin instead of interactive prompts - perfect for:
+- Piping data: `cat input.txt | python my_tool.py`
+- Batch processing: `python my_tool.py < batch.txt`
+- Automated testing
 
 ```python
 import asyncio
 from repl_toolkit import run_headless_mode
 
 class BatchProcessor:
-    async def handle_input(self, user_input: str) -> bool:
-        result = await process_data(user_input)
+    async def handle_input(self, text: str) -> bool:
+        result = text.upper()  # Your processing logic
         print(f"Processed: {result}")
         return True
 
-asyncio.run(run_headless_mode(backend=BatchProcessor()))
+async def main():
+    backend = BatchProcessor()
+    success = await run_headless_mode(backend)
+    return 0 if success else 1
+
+exit(asyncio.run(main()))
 ```
 
-Pipe input:
-```bash
-$ echo -e "Line 1\nLine 2\nLine 3" | python script.py
-Processed: Line 1
-Processed: Line 2
-Processed: Line 3
+Input format:
+```
+First line of input
+Second line
+/send
+More content here
+Another line
+/send
 ```
 
-Headless mode reads from stdin line by line and processes each one with your backend.
+- Content accumulates until `/send`
+- Each `/send` triggers backend processing
+- EOF auto-sends remaining content
+- Commands like `/help` work normally
 
-## Keyboard Shortcuts
+See [examples/headless_usage.py](examples/headless_usage.py) for a complete example with statistics tracking.
 
-Register shortcuts for common actions:
+## Actions Deep Dive
+
+Actions provide both typed commands and keyboard shortcuts for the same functionality:
 
 ```python
-# Function keys
-self.register_action(
-    name="help",
-    handler=show_help,
-    keys="F1"  # Press F1
-)
+from repl_toolkit import Action, ActionContext
 
-# Modifier combinations
-self.register_action(
+def save_handler(context: ActionContext):
+    """Save the conversation."""
+    # Get arguments if it was a command
+    if context.args:
+        filename = context.args[0]
+    else:
+        filename = "default.txt"
+
+    # Your save logic here
+    print(f"Saved to {filename}")
+
+    # Know how it was triggered
+    if context.triggered_by == "shortcut":
+        print("(via Ctrl+S)")
+
+action = Action(
     name="save",
-    handler=save_data,
-    keys="ctrl-s"  # Ctrl+S
+    description="Save conversation",
+    category="File",
+    handler=save_handler,
+    keys="c-s",              # Ctrl+S
+    command="/save",
+    command_usage="/save [filename]"
 )
 
-# Multiple shortcuts for same action
-self.register_action(
-    name="refresh",
-    handler=refresh_data,
-    keys=["F5", "ctrl-r"]  # F5 or Ctrl+R
-)
+registry = ActionRegistry()
+registry.register_action(action)
 ```
 
-Common shortcuts:
-- `"F1"` through `"F12"` - Function keys
-- `"ctrl-s"` - Ctrl+S
-- `"alt-h"` - Alt+H
-- `"ctrl-alt-d"` - Ctrl+Alt+D
-
-## Built-in Commands
+### Built-in Actions
 
 Every REPL includes these by default:
 
-| Command | Shortcut | What it does |
 |---------|----------|--------------|
 | `/help [action]` | `F1` | Show help for all actions or a specific one |
 | `/shortcuts` | - | List all keyboard shortcuts |
 | `/exit` or `/quit` | - | Exit the application |
-| `/paste-image` | `F6` | Paste image from clipboard |
+| `/paste` | `F6` | Paste image or text from clipboard |
+
+Commands execute immediately when you press Enter. For normal text messages, press Alt+Enter to send.
 
 ## Handling Action Context
 
 Your action handlers receive context about how they were called:
 
 ```python
-def my_action(context):
-    # Access the backend
-    backend = context.backend
-
-    # Check how action was triggered
+def my_handler(context: ActionContext):
+    # How was it triggered?
     if context.triggered_by == "command":
-        # User typed "/myaction arg1 arg2"
-        args = context.args  # ["arg1", "arg2"]
-        print(f"Args: {args}")
-
+        print("User typed the command")
     elif context.triggered_by == "shortcut":
-        # User pressed keyboard shortcut
-        print("Triggered by keyboard")
+        print("User pressed the keyboard shortcut")
+
+    # Command arguments (if triggered by command)
+    if context.args:
+        print(f"Arguments: {context.args}")
 
     # Access the full command
-    if context.user_input:
-        print(f"Full input: {context.user_input}")
-```
+    if context.command:
+        print(f"Full command: {context.command}")
 
-## Auto-completion
+    # Access other components
+    context.registry  # The action registry
+    context.repl      # The REPL instance
+    context.backend   # Your backend
+```
 
 Add tab completion for commands, file paths, or custom values:
 
 ```python
-from repl_toolkit import AsyncREPL
-from repl_toolkit.completion import PrefixCompleter
+from repl_toolkit import PrefixCompleter, ShellExpansionCompleter
 
 # Complete slash commands
-completer = PrefixCompleter(
-    prefix="/",
-    words=["help", "save", "load", "quit"]
+completer = PrefixCompleter(["/help", "/history", "/model"])
+
+# Or use shell-style completion with variables and commands
+completer = ShellExpansionCompleter(
+    commands=["/help", "/history"],
+    enable_env_vars=True,        # Complete $VAR
+    enable_command_sub=True      # Complete $(command)
 )
-
-repl = AsyncREPL(completer=completer)
 ```
-
-Users can press `Tab` to complete `/he` → `/help`.
 
 See [repl_toolkit/completion/README.md](repl_toolkit/completion/README.md) for advanced completion features including shell command expansion and environment variables.
 
-## Full Example: Chat Bot with Commands
+## Advanced Example: Chat Bot
+
+A more complete example with commands, shortcuts, and conversation history:
 
 ```python
 import asyncio
-from repl_toolkit import AsyncREPL, ActionRegistry
+from repl_toolkit import AsyncREPL, ActionRegistry, Action, ActionContext
 
-class ChatBot:
+class ChatBackend:
     def __init__(self):
         self.history = []
         self.model = "gpt-4"
 
     async def handle_input(self, user_input: str) -> bool:
-        self.history.append(f"User: {user_input}")
+        self.history.append({"role": "user", "content": user_input})
 
-        # Simulate API call
-        await asyncio.sleep(0.5)
-        response = f"[{self.model}] Response to: {user_input}"
+        # Your AI API call here
+        response = f"[{self.model}] Echo: {user_input}"
 
-        self.history.append(f"Bot: {response}")
+        self.history.append({"role": "assistant", "content": response})
         print(response)
         return True
 
-class ChatActions(ActionRegistry):
-    def __init__(self):
-        super().__init__()
+def create_actions(backend):
+    registry = ActionRegistry()
 
-        self.register_action(
-            name="history",
-            description="Show conversation history",
-            category="Chat",
-            handler=self._show_history,
-            command="/history",
-            keys="F2"
-        )
+    # Show conversation history
+    registry.register_action(Action(
+        name="show_history",
+        description="Show conversation history",
+        handler=lambda ctx: print("\n".join(
+            f"{msg['role']}: {msg['content']}" for msg in backend.history
+        )),
+        command="/history",
+        keys="F3"
+    ))
 
-        self.register_action(
-            name="model",
-            description="Change AI model",
-            category="Config",
-            handler=self._change_model,
-            command="/model",
-            command_usage="/model <model-name>"
-        )
-
-        self.register_action(
-            name="clear",
-            description="Clear conversation history",
-            category="Chat",
-            handler=self._clear_history,
-            command="/clear",
-            keys="F3"
-        )
-
-    def _show_history(self, context):
-        backend = context.backend
-        if not backend.history:
-            print("No conversation history")
-        else:
-            print("\n=== History ===")
-            for line in backend.history:
-                print(line)
-
-    def _change_model(self, context):
-        backend = context.backend
-        if context.args:
-            backend.model = context.args[0]
-            print(f"Switched to model: {backend.model}")
+    # Switch model
+    def switch_model(ctx: ActionContext):
+        if ctx.args:
+            backend.model = ctx.args[0]
+            print(f"Switched to {backend.model}")
         else:
             print(f"Current model: {backend.model}")
 
-    def _clear_history(self, context):
-        backend = context.backend
-        count = len(backend.history)
-        backend.history.clear()
-        print(f"Cleared {count} messages")
+    registry.register_action(Action(
+        name="switch_model",
+        description="Switch AI model",
+        handler=switch_model,
+        command="/model",
+        command_usage="/model <model-name>"
+    ))
+
+    # Clear history
+    registry.register_action(Action(
+        name="clear",
+        description="Clear conversation history",
+        handler=lambda ctx: (backend.history.clear(), print("History cleared!")),
+        command="/clear",
+        keys="F4"
+    ))
+
+    return registry
 
 async def main():
-    actions = ChatActions()
-    backend = ChatBot()
+    backend = ChatBackend()
+    actions = create_actions(backend)
 
     repl = AsyncREPL(
         action_registry=actions,
-        prompt_string="You: "
+        prompt_string="<b>You:</b> ",
+        history_path=Path.home() / ".chatbot_history"
     )
 
     await repl.run(backend, "Chat bot ready! Type /help for commands.")
 
-if __name__ == "__main__":
-    asyncio.run(main())
+asyncio.run(main())
 ```
 
+## API Overview
 
-## Important: Blocking Operations
-
-**Alt+C and Ctrl+C can only cancel async operations.** If your backend does synchronous blocking work (like `subprocess.run()`, `time.sleep()`, or blocking I/O), cancellation won't work until that operation completes.
-
-### The Problem
+### Main Classes
 
 ```python
-class BlockingBackend:
-    async def handle_input(self, user_input: str) -> bool:
-        # This BLOCKS the event loop - cancellation won't work
-        subprocess.run(["sleep", "60"], check=True)  # User is stuck for 60 seconds
-        return True
-```
-
-When you press Alt+C, Python can only cancel at `await` points. The synchronous `subprocess.run()` blocks everything.
-
-### The Solution: Use Async APIs
-
-```python
-class NonBlockingBackend:
-    async def handle_input(self, user_input: str) -> bool:
-        # This is async - cancellation works immediately
-        proc = await asyncio.create_subprocess_exec(
-            "sleep", "60",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        await proc.wait()  # Can be cancelled here
-        return True
-```
-
-### Quick Reference
-
-**Don't do this** (blocks event loop):
-```python
-time.sleep(10)                          # Use: await asyncio.sleep(10)
-subprocess.run(["cmd"])                 # Use: await asyncio.create_subprocess_exec()
-requests.get(url)                       # Use: async with aiohttp.ClientSession()
-file.read()                             # Use: async with aiofiles.open()
-socket.recv()                           # Use: asyncio streams
-while True: compute()                   # Use: await asyncio.sleep(0) in loop
-```
-
-**Do this instead** (cancellable):
-```python
-await asyncio.sleep(10)
-proc = await asyncio.create_subprocess_exec("cmd")
-async with aiohttp.ClientSession() as session:
-    await session.get(url)
-async with aiofiles.open(path) as f:
-    await f.read()
-reader, writer = await asyncio.open_connection(host, port)
-while True:
-    await asyncio.sleep(0)  # Yield to event loop
-    compute()
-```
-
-### Using Executors for Blocking Code
-
-If you must use blocking code, run it in an executor so it doesn't block cancellation:
-
-```python
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
-
-class BackendWithBlocking:
-    def __init__(self):
-        self.executor = ThreadPoolExecutor(max_workers=2)
-
-    def blocking_operation(self, arg):
-        """This is a blocking function."""
-        import time
-        time.sleep(10)
-        return f"Result: {arg}"
-
-    async def handle_input(self, user_input: str) -> bool:
-        # Run blocking code in executor - cancellable
-        try:
-            result = await asyncio.wait_for(
-                asyncio.get_event_loop().run_in_executor(
-                    self.executor,
-                    self.blocking_operation,
-                    user_input
-                ),
-                timeout=None  # Or set a timeout
-            )
-            print(result)
-        except asyncio.CancelledError:
-            print("Operation cancelled!")
-            raise  # Re-raise to complete cancellation
-        return True
-```
-
-**Note**: Running in an executor means the operation will complete in the background even after cancellation. The thread can't be stopped, but your async code can continue.
-
-### Running Shell Commands Properly
-
-```python
-async def handle_input(self, user_input: str) -> bool:
-    try:
-        # Create process
-        proc = await asyncio.create_subprocess_shell(
-            user_input,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-
-        # Wait for completion (cancellable)
-        stdout, stderr = await proc.communicate()
-
-        print(stdout.decode())
-        if stderr:
-            print(f"Error: {stderr.decode()}", file=sys.stderr)
-
-        return True
-
-    except asyncio.CancelledError:
-        # Kill the process on cancellation
-        proc.kill()
-        await proc.wait()
-        print("Command cancelled")
-        raise
-```
-
-### Why This Matters
-
-Python's async is **cooperative** - your code must regularly yield control back to the event loop with `await`. If you don't, nothing else can run, including cancellation handlers.
-
-Think of it like this:
-- **Async code**: "I'll do this work, but I'll check for cancellation regularly"
-- **Blocking code**: "I'm doing this and nothing can stop me until I'm done"
-
-The REPL Toolkit can't make blocking code cancellable - that's a Python limitation. But by using async APIs throughout your backend, you get responsive cancellation for free.
-## Testing Your REPL
-
-Use headless mode for tests:
-
-```python
-import asyncio
-import pytest
-from repl_toolkit import HeadlessREPL
-
-@pytest.mark.asyncio
-async def test_backend():
-    backend = MyBackend()
-    repl = HeadlessREPL(backend=backend)
-
-    # Simulate user input
-    result = await repl.process_line("test input")
-    assert result == True
-```
-
-## Configuration Options
-
-### AsyncREPL
-
-```python
-repl = AsyncREPL(
-    action_registry=actions,          # Your custom actions
-    completer=completer,               # Tab completion
-    prompt_string=">>> ",              # Custom prompt
-    history_path=Path("~/.myapp_history"),  # Command history file
-    enable_image_paste=True,           # Image clipboard support
-    enable_system_prompt=True,         # Enable Esc+! for shell commands
+from repl_toolkit import (
+    AsyncREPL,                     # Interactive REPL with UI
+    run_headless_mode,             # Process stdin without UI
+    ActionRegistry,                # Manage commands and shortcuts
+    Action,                        # Define a command/shortcut
+    ActionContext,                 # Context passed to handlers
+    PrefixCompleter,               # Tab completion
+    ShellExpansionCompleter,       # Advanced tab completion
 )
 ```
 
-### ActionRegistry
+### AsyncREPL Options
 
 ```python
-registry.register_action(
-    name="action_name",               # Unique identifier
-    description="What it does",       # Shown in help
-    category="Category",               # Group in help display
-    handler=handler_function,          # Your function
+repl = AsyncREPL(
+    action_registry=None,              # Optional action registry
+    completer=None,                    # Optional tab completer
+    prompt_string="User: ",            # Custom prompt
+    history_path=None,                 # Optional history file
+    enable_image_paste=True,           # Image clipboard support
+)
+```
+
+### Action Definition
+
+```python
+action = Action(
+    name="my_action",                  # Unique identifier
+    description="What it does",       # Help text
+    category="General",                # Optional: group in help
+    handler=my_function,               # Called when triggered
+    keys="F2",                         # Optional: keyboard shortcut
+    keys_description="...",            # Optional: help for shortcut
     command="/cmd",                    # Optional: typed command
     command_usage="/cmd [args]",       # Optional: usage text
-    keys="F5",                         # Optional: keyboard shortcut
-    keys_description="Quick action",   # Optional: shortcut description
     enabled=True                       # Optional: enable/disable
 )
 ```
 
-## Real-World Use Cases
+**Key formats:**
+- Function keys: `"F1"`, `"F2"`, ..., `"F12"`
+- Control: `"c-s"` (Ctrl+S), `"c-q"` (Ctrl+Q)
+- Alt/Escape: `"escape"` followed by key
+- Control+Shift: `"c-s-v"` (Ctrl+Shift+V)
 
-REPL Toolkit is useful for building:
+## Use Cases
 
+REPL Toolkit is designed for any interactive terminal application:
+
+- **AI Chat Clients** - Talk to Claude, ChatGPT, or local models with keyboard shortcuts for common operations
 - **Database Query Tools** - Interactive SQL or NoSQL clients with command history, query shortcuts, and result formatting
-- **Chat Bot Interfaces** - Conversational AI frontends with image support, history management, and quick actions
-- **API Testing Tools** - Send HTTP requests interactively with shortcuts for authentication, common endpoints, and response inspection
+- **System Monitoring** - Watch logs, metrics, or system status with commands to filter, search, or change views
+- **Configuration Editors** - Interactive config file editing with validation and shortcuts for common changes
 - **Game Consoles** - Debug commands and cheats during development with quick shortcuts for common operations
 - **Log Analyzers** - Query and filter logs interactively with custom commands for common patterns
-- **Configuration Managers** - Edit settings interactively with validation and shortcuts for common configurations
-- **Monitoring Dashboards** - Command-line monitoring tools with refresh shortcuts and alert management
+- **Data Processing** - Interactive data transformation with commands for different operations and live preview
+- **API Clients** - Test and explore APIs interactively with shortcuts for common requests
 - **Development Tools** - Any tool that needs interactive command input with a good user experience
 
 The toolkit handles the terminal UI, keyboard shortcuts, and command routing so you can focus on your application's logic.
 
 ## Examples
 
-Working examples are in the `examples/` directory:
+The [examples/](examples/) directory contains working examples:
 
 ```bash
-# Basic echo REPL
+# Basic usage - simple echo bot
 python examples/basic_usage.py
 
-# Advanced with custom actions
+# Advanced - chat bot with history and commands
 python examples/advanced_usage.py
+
+# Headless - process input from stdin
+echo -e "Line 1\nLine 2\n/send" | python examples/headless_usage.py
 
 # Image paste demo
 python examples/image_paste_demo.py
 
-# Completion examples
+# Tab completion
 python examples/completion_demo.py
-```
-
-## API Quick Reference
-
-### Core Classes
-
-```python
-from repl_toolkit import AsyncREPL, ActionRegistry, Action
-
-# Create a REPL
-repl = AsyncREPL(
-    action_registry=actions,
-    prompt_string=">>> ",
-    history_path=Path("~/.history")
-)
-
-# Run with backend
-await repl.run(backend, initial_message="Ready!")
-
-# Register an action
-actions.register_action(
-    name="my_action",
-    description="Description",
-    category="Category",
-    handler=handler_func,
-    command="/cmd",
-    keys="F5"
-)
-```
-
-### Protocols (Interfaces)
-
-Your backend must implement:
-
-```python
-class MyBackend:
-    async def handle_input(self, user_input: str, **kwargs) -> bool:
-        # Process input, return True for success
-        return True
-```
-
-For images, accept the `images` kwarg:
-
-```python
-async def handle_input(self, user_input: str, images=None, **kwargs) -> bool:
-    if images:
-        for img_id, img_data in images.items():
-            # Process img_data.data (bytes)
-            # img_data.media_type (e.g., "image/png")
-            pass
-    return True
-```
-
-### Convenience Functions
-
-```python
-from repl_toolkit import run_async_repl, run_headless_mode
-
-# Quick start
-await run_async_repl(backend=backend, prompt_string=">>> ")
-
-# Headless/batch mode
-await run_headless_mode(backend=backend, initial_message="Starting...")
 ```
 
 ## Advanced Features
 
-### Formatting Utilities
+### Custom Action Context
 
-Auto-format HTML or ANSI codes in output:
+Pass additional context to your action handlers:
 
 ```python
-from repl_toolkit import create_auto_printer
+def my_handler(context: ActionContext):
+    # Built-in context
+    command = context.command
+    args = context.args
+    triggered_by = context.triggered_by
 
-printer = create_auto_printer()
-printer("<b>Bold text</b>")  # Automatically rendered as bold
-printer("\x1b[31mRed text\x1b[0m")  # Automatically rendered as red
+    # Your custom data via backend
+    backend = context.backend
+    user_settings = backend.user_settings
 ```
 
-See `examples/formatting_demo.py` for details.
-
-### Custom Completion
-
-Build sophisticated auto-completion:
+### Shell Expansion in Completion
 
 ```python
-from repl_toolkit.completion import ShellExpansionCompleter
+from repl_toolkit import ShellExpansionCompleter
 
+completer = ShellExpansionCompleter(
+    commands=["/help", "/load"],
+    enable_env_vars=True,        # $HOME, $USER, etc.
+    enable_command_sub=True,     # $(echo foo)
+    enable_tilde=True,           # ~/Documents
+)
 # Expand $VAR and $(command) on tab
-completer = ShellExpansionCompleter()
-repl = AsyncREPL(completer=completer)
 ```
 
-See [repl_toolkit/completion/README.md](repl_toolkit/completion/README.md) for details.
+### Dynamic Actions
 
-## Development
+Enable/disable actions at runtime:
 
-```bash
-# Clone and install
-git clone https://github.com/bassmanitram/repl-toolkit.git
-cd repl-toolkit
-pip install -e ".[dev,test]"
+```python
+# Disable an action
+registry.get_action("save").enabled = False
 
-# Run tests
-pytest
+# Re-enable it
+registry.get_action("save").enabled = True
+```
 
-# Check types
-mypy repl_toolkit/
+### Custom Formatters
 
-# Format code
-black repl_toolkit/
-isort repl_toolkit/
+The toolkit uses [prompt_toolkit](https://python-prompt-toolkit.readthedocs.io/) under the hood. You can use HTML-style formatting in prompts and output:
+
+```python
+from prompt_toolkit import HTML
+
+# In prompts
+repl = AsyncREPL(prompt_string=HTML("<b>You:</b> "))
+
+# In output
+print(HTML("<green>Success!</green>"))
+print(HTML("<red>Error!</red>"))
 ```
 
 ## Troubleshooting
 
-**"No module named 'repl_toolkit'"**
-```bash
-pip install repl-toolkit
-```
-
-**Image paste doesn't work**
-```bash
-pip install pyclip
-```
+**Commands don't work**
+- Make sure you're using `ActionRegistry` and registering actions
+- Check action names are unique
+- Commands execute immediately on Enter; press Alt+Enter for normal text
 
 **Keyboard shortcuts don't work**
+- Verify key format: `"F1"`, `"c-s"`, etc.
 - Some terminals don't support all key combinations
-- Try function keys (F1-F12) which work everywhere
-- Check your terminal's key binding settings
+- Try function keys (`F1`-`F12`) - they work everywhere
 
-**Tests fail on import**
-- Make sure you're using Python 3.8+
-- Install test dependencies: `pip install pytest pytest-asyncio`
+**Image paste doesn't work**
+- Install pyclip: `pip install pyclip`
+- Verify clipboard access on your system
+- Linux may need `xclip` or `xsel`: `apt-get install xclip`
 
-## Links
+**History not saving**
+- Check `history_path` is writable
+- Parent directory must exist
+- Example: `Path.home() / ".myapp_history"`
 
-- **Documentation**: [repl-toolkit.readthedocs.io](https://repl-toolkit.readthedocs.io/)
-- **PyPI**: [pypi.org/project/repl-toolkit](https://pypi.org/project/repl-toolkit/)
-- **Source**: [github.com/bassmanitram/repl-toolkit](https://github.com/bassmanitram/repl-toolkit)
-- **Issues**: [github.com/bassmanitram/repl-toolkit/issues](https://github.com/bassmanitram/repl-toolkit/issues)
+**Tab completion not working**
+- Pass `completer` to `AsyncREPL` constructor
+- Verify completion items are strings
+- Commands only complete at line start or after newlines
 
-## Changelog
+## Requirements
 
-See [CHANGELOG.md](CHANGELOG.md) for version history.
-
-## License
-
-MIT License - see [LICENSE](LICENSE) file.
+- Python 3.8+
+- prompt-toolkit 3.0+
+- pyclip 0.7+ (optional, for image paste support)
 
 ## Contributing
 
-Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Add tests for new functionality
+4. Ensure all tests pass: `pytest`
+5. Submit a pull request
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## Credits
+
+Built on [prompt-toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit) for terminal handling.
+
+## Changes
+
+See [CHANGELOG.md](CHANGELOG.md) for version history.

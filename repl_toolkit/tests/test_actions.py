@@ -575,3 +575,87 @@ class TestActionValidationExtended:
             Action(
                 name="test", description="Test", category="Test", handler=""  # Empty string handler
             )
+
+
+class TestIsRegisteredCommand:
+    """Test ActionRegistry.is_registered_command() method."""
+
+    def test_is_registered_command_basic(self):
+        """Test basic command detection."""
+        registry = ActionRegistry()
+
+        # Built-in commands should be recognized
+        assert registry.is_registered_command("/help")
+        assert registry.is_registered_command("/help topic")
+        assert registry.is_registered_command("/exit")
+        assert registry.is_registered_command("/quit")
+        assert registry.is_registered_command("/shortcuts")
+
+        # Unknown commands should not be recognized
+        assert not registry.is_registered_command("/unknown")
+        assert not registry.is_registered_command("/notacommand")
+
+    def test_is_registered_command_with_whitespace(self):
+        """Test command detection with whitespace."""
+        registry = ActionRegistry()
+
+        # Leading/trailing whitespace should be handled
+        assert registry.is_registered_command("  /help  ")
+        assert registry.is_registered_command("\n/help\n")
+        assert registry.is_registered_command("  /help topic  ")
+
+    def test_is_registered_command_text_with_slash(self):
+        """Test that text containing commands is not recognized."""
+        registry = ActionRegistry()
+
+        # Text mentioning commands should not match
+        assert not registry.is_registered_command("Please use /help")
+        assert not registry.is_registered_command("Try /help for more info")
+        assert not registry.is_registered_command("Type /exit to quit")
+
+    def test_is_registered_command_no_slash(self):
+        """Test text without slash prefix."""
+        registry = ActionRegistry()
+
+        assert not registry.is_registered_command("help")
+        assert not registry.is_registered_command("exit")
+        assert not registry.is_registered_command("some text")
+        assert not registry.is_registered_command("")
+
+    def test_is_registered_command_custom_action(self):
+        """Test with custom registered actions."""
+        registry = ActionRegistry()
+
+        # Register a custom action
+        registry.register_action(
+            Action(
+                name="save",
+                category="Test",
+                description="Save",
+                handler=lambda ctx: None,
+                command="/save",
+            )
+        )
+
+        assert registry.is_registered_command("/save")
+        assert registry.is_registered_command("/save file.txt")
+        assert not registry.is_registered_command("/load")  # Not registered
+
+    def test_is_registered_command_args(self):
+        """Test commands with various argument patterns."""
+        registry = ActionRegistry()
+
+        registry.register_action(
+            Action(
+                name="model",
+                category="Test",
+                description="Switch model",
+                handler=lambda ctx: None,
+                command="/model",
+            )
+        )
+
+        # Various argument patterns
+        assert registry.is_registered_command("/model gpt-4")
+        assert registry.is_registered_command("/model   multiple   args  ")
+        assert registry.is_registered_command("/help /model")  # /help with arg

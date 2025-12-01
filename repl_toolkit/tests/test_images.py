@@ -7,7 +7,7 @@ import pytest
 
 from repl_toolkit import AsyncREPL, ImageData, detect_media_type
 from repl_toolkit.actions import ActionContext, ActionRegistry
-from repl_toolkit.images import create_paste_image_action
+from repl_toolkit.images import create_paste_action
 
 
 class TestDetectMediaType:
@@ -150,33 +150,33 @@ class TestAsyncREPLImageSupport:
 
 
 class TestPasteImageAction:
-    """Test paste_image action."""
+    """Test paste action."""
 
-    def test_create_paste_image_action(self):
-        """Test creating paste_image action."""
-        action = create_paste_image_action()
+    def test_create_paste_action(self):
+        """Test creating paste action."""
+        action = create_paste_action()
 
-        assert action.name == "paste_image"
-        assert action.command == "/paste-image"
-        assert action.keys == "f6"
+        assert action.name == "paste"
+        assert action.command == "/paste"
+        assert action.keys == "F6"
         assert action.handler is not None
 
-    def test_paste_image_action_registered(self, mock_terminal_for_repl):
-        """Test that paste_image action is registered by default."""
+    def test_paste_action_registered(self, mock_terminal_for_repl):
+        """Test that paste action is registered by default."""
         repl = AsyncREPL(enable_image_paste=True)
 
-        assert repl.action_registry.validate_action("paste_image")
-        assert "/paste-image" in repl.action_registry.command_map
-        assert "f6" in repl.action_registry.key_map
+        assert repl.action_registry.validate_action("paste")
+        assert "/paste" in repl.action_registry.command_map
+        assert "F6" in repl.action_registry.key_map
 
-    def test_paste_image_action_not_registered(self, mock_terminal_for_repl):
-        """Test that paste_image action is not registered when disabled."""
+    def test_paste_action_not_registered(self, mock_terminal_for_repl):
+        """Test that paste action is not registered when disabled."""
         repl = AsyncREPL(enable_image_paste=False)
 
-        assert not repl.action_registry.validate_action("paste_image")
+        assert not repl.action_registry.validate_action("paste")
 
     @patch("pyclip.paste")
-    def test_paste_image_success(self, mock_paste, mock_terminal_for_repl):
+    def test_paste_success(self, mock_paste, mock_terminal_for_repl):
         """Test successful image paste."""
         repl = AsyncREPL(enable_image_paste=True)
 
@@ -194,7 +194,7 @@ class TestPasteImageAction:
         )
 
         # Execute action
-        repl.action_registry.execute_action("paste_image", context)
+        repl.action_registry.execute_action("paste", context)
 
         # Verify image was added
         assert len(repl._image_buffer) == 1
@@ -223,7 +223,7 @@ class TestPasteImageAction:
             registry=repl.action_registry, repl=repl, buffer=mock_buffer, triggered_by="shortcut"
         )
 
-        repl.action_registry.execute_action("paste_image", context)
+        repl.action_registry.execute_action("paste", context)
 
         # No image should be added
         assert len(repl._image_buffer) == 0
@@ -250,7 +250,7 @@ class TestPasteImageAction:
             registry=repl.action_registry, repl=repl, buffer=mock_buffer, triggered_by="shortcut"
         )
 
-        repl.action_registry.execute_action("paste_image", context)
+        repl.action_registry.execute_action("paste", context)
 
         # No image should be added
         assert len(repl._image_buffer) == 0
@@ -271,15 +271,15 @@ class TestPasteImageAction:
             registry=repl.action_registry, repl=repl, buffer=mock_buffer, triggered_by="shortcut"
         )
 
-        repl.action_registry.execute_action("paste_image", context)
+        repl.action_registry.execute_action("paste", context)
 
         # Nothing should be added
         assert len(repl._image_buffer) == 0
         mock_buffer.insert_text.assert_not_called()
 
-    def test_paste_image_no_repl_context(self, mock_terminal_for_repl):
+    def test_paste_no_repl_context(self, mock_terminal_for_repl):
         """Test paste without REPL context."""
-        action = create_paste_image_action()
+        action = create_paste_action()
 
         # Context without repl
         context = ActionContext(registry=ActionRegistry(), triggered_by="test")
@@ -289,7 +289,7 @@ class TestPasteImageAction:
         # No error should be raised
 
     @patch("pyclip.paste")
-    def test_paste_image_no_buffer(self, mock_paste, mock_terminal_for_repl):
+    def test_paste_no_buffer(self, mock_paste, mock_terminal_for_repl):
         """Test paste without buffer context."""
         repl = AsyncREPL(enable_image_paste=True)
 
@@ -299,7 +299,7 @@ class TestPasteImageAction:
         # Context without buffer
         context = ActionContext(registry=repl.action_registry, repl=repl, triggered_by="command")
 
-        repl.action_registry.execute_action("paste_image", context)
+        repl.action_registry.execute_action("paste", context)
 
         # Image should still be added to buffer
         assert len(repl._image_buffer) == 1
@@ -462,20 +462,20 @@ class TestImagePlaceholders:
         )
 
         # Paste two images
-        repl.action_registry.execute_action("paste_image", context)
-        repl.action_registry.execute_action("paste_image", context)
+        repl.action_registry.execute_action("paste", context)
+        repl.action_registry.execute_action("paste", context)
 
         assert len(placeholders) == 2
         assert placeholders[0] == " {{image:img_001}}"
         assert placeholders[1] == " {{image:img_002}}"
         assert len(repl._image_buffer) == 2
 
-    def test_paste_image_key_bindings(self, mock_terminal_for_repl):
-        """Test that paste_image has both F6 bindings."""
+    def test_paste_key_bindings(self, mock_terminal_for_repl):
+        """Test that paste has both F6 bindings."""
         repl = AsyncREPL(enable_image_paste=True)
 
         # Both keys should be registered
-        assert "f6" in repl.action_registry.key_map
+        assert "F6" in repl.action_registry.key_map
 
-        # Both should map to paste_image
-        assert repl.action_registry.key_map["f6"] == "paste_image"
+        # Both should map to paste
+        assert repl.action_registry.key_map["F6"] == "paste"

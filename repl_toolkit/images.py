@@ -177,9 +177,9 @@ def reconstruct_message(
     return "".join(parts)
 
 
-def create_paste_image_action(enable_by_default: bool = True):
+def create_paste_action(enable_by_default: bool = True):
     """
-    Create the default paste_image action.
+    Create the default paste action.
 
     This is a factory function that creates the action so it can be
     conditionally registered based on pyclip availability.
@@ -188,11 +188,11 @@ def create_paste_image_action(enable_by_default: bool = True):
         enable_by_default: Whether the action should be enabled by default
 
     Returns:
-        Action instance for paste_image functionality
+        Action instance for paste functionality
     """
     from .actions import Action
 
-    def paste_image_handler(context):
+    def paste_handler(context):
         """Paste image from clipboard into message."""
         try:
             import pyclip
@@ -232,13 +232,13 @@ def create_paste_image_action(enable_by_default: bool = True):
             context.printer(f"Failed to paste: {e}")
 
     return Action(
-        name="paste_image",
+        name="paste",
         description="Paste image or text from clipboard",
         category="Input",
-        handler=paste_image_handler,
-        command="/paste-image",
-        command_usage="/paste-image - Paste image or text from clipboard",
-        keys="f6",
+        handler=paste_handler,
+        command="/paste",
+        command_usage="/paste - Paste image or text from clipboard",
+        keys="F6",
         keys_description="Paste image or text from clipboard",
         enabled=enable_by_default,
     )

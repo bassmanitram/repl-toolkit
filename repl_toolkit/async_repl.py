@@ -23,7 +23,7 @@ from prompt_toolkit.keys import Keys
 from prompt_toolkit.output import DummyOutput
 
 from .actions import ActionContext, ActionRegistry
-from .images import ImageData, create_paste_image_action
+from .images import ImageData, create_paste_action
 from .ptypes import ActionHandler, AsyncBackend, Completer
 
 THINKING = HTML("<i><grey>Thinking... (Press Ctrl+C or Alt+C to cancel)</grey></i>")
@@ -76,7 +76,7 @@ class AsyncREPL:
         # Register image paste action if enabled
         if enable_image_paste:
             try:
-                paste_action = create_paste_image_action()
+                paste_action = create_paste_action()
                 self.action_registry.register_action(paste_action)  # type: ignore[attr-defined]
             except Exception as e:
                 logger.warning(f"Failed to register image paste action: {e}")
@@ -173,8 +173,14 @@ class AsyncREPL:
         # Built-in bindings for core REPL functionality
         @bindings.add("enter")  # pragma: no cover
         def _(event):
-            """Handle Enter key - add new line."""
-            event.app.current_buffer.insert_text("\n")
+            """Handle Enter key - execute command or add new line."""
+            buffer_text = event.app.current_buffer.text
+            if self.action_registry.is_registered_command(buffer_text):
+                # Command - execute it
+                event.app.current_buffer.validate_and_handle()
+            else:
+                # Normal text - add newline
+                event.app.current_buffer.insert_text("\n")
 
         @bindings.add(Keys.Escape, "enter")  # pragma: no cover
         def _(event):

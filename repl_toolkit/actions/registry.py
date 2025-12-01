@@ -433,6 +433,50 @@ class ActionRegistry(ActionHandler):
         logger.debug("ActionRegistry.list_shortcuts() entry/exit")
         return list(self.key_map.keys())
 
+    def is_registered_command(self, text: str) -> bool:
+        """
+        Check if text starts with a registered command.
+
+        The text must start with '/<command>' followed by either:
+        - A space (for commands with arguments)
+        - End of string (for commands without arguments)
+
+        Args:
+            text: Text to check (will be stripped)
+
+        Returns:
+            True if text starts with a registered command, False otherwise
+
+        Example:
+            >>> registry.is_registered_command("/help")
+            True
+            >>> registry.is_registered_command("/help topic")
+            True
+            >>> registry.is_registered_command("/unknown")
+            False
+            >>> registry.is_registered_command("Please use /help")
+            False
+        """
+        logger.debug("ActionRegistry.is_registered_command() entry")
+
+        text = text.strip()
+        if not text.startswith("/"):
+            logger.debug("ActionRegistry.is_registered_command() exit - no slash")
+            return False
+
+        # Extract the command part (everything before first space or end)
+        space_pos = text.find(" ")
+        if space_pos == -1:
+            # No space - entire text is the command
+            command = text
+        else:
+            # Has space - command is before the space
+            command = text[:space_pos]
+
+        result = command in self.command_map
+        logger.debug(f"ActionRegistry.is_registered_command() exit - {result}")
+        return result
+
     def get_actions_by_category(self) -> Dict[str, List[Action]]:
         """Get actions organized by category."""
         logger.debug("ActionRegistry.get_actions_by_category() entry")
