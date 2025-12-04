@@ -2,6 +2,19 @@
 
 Thank you for your interest in contributing to REPL Toolkit! This document provides guidelines for contributing to the project.
 
+## Project Context Documentation
+
+**New to the project?** Start with [AGENT_BOOTSTRAP.md](AGENT_BOOTSTRAP.md) for comprehensive project context.
+
+The `AGENT_BOOTSTRAP.md` file provides:
+- Complete project overview and architecture
+- Repository structure and component explanations
+- Key concepts and design patterns
+- Common code patterns and testing approaches
+- Quick reference for development commands
+
+This document is designed for both human developers and AI development assistants to quickly understand the project structure, make informed decisions, and contribute effectively. It's especially useful when starting work on a new feature or when returning to the project after time away.
+
 ## Development Setup
 
 1. Clone the repository:
