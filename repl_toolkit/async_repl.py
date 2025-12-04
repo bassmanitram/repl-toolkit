@@ -158,6 +158,8 @@ class AsyncREPL:
         Built-in Key Bindings:
         - Enter: Add new line
         - Alt+Enter: Send message
+        - F7: Clear buffer
+        - Escape, Escape: Clear buffer
         - Ctrl+C: Cancel operation (during processing)
         - Alt+C: Cancel operation (during processing)
 
@@ -188,6 +190,14 @@ class AsyncREPL:
             event.app.current_buffer.validate_and_handle()
 
         # Register dynamic key bindings from action registry
+
+        # Buffer clear binding
+        @bindings.add(Keys.F7)
+        @bindings.add(Keys.Escape, Keys.Escape)
+        def _(event):
+            """Clear buffer with F7 or Escape Escape."""
+            event.app.current_buffer.reset()
+
         self._register_action_shortcuts(bindings)
 
         logger.debug("AsyncREPL._create_key_bindings() exit")
