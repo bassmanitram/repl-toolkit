@@ -149,4 +149,5 @@ __all__ = [
     "auto_format",
     "print_auto_formatted",
     "create_auto_printer",
+    "print_formatted_text",
 ]
