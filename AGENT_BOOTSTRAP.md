@@ -1,642 +1,291 @@
-# REPL Toolkit - Agent Bootstrap Documentation
+# REPL Toolkit - Agent Bootstrap
 
-**Last Updated:** 2025-12-03  
-**Version:** 2.0.2  
-**Purpose:** Project context for AI development assistants
-
----
-
-## Project Overview
-
-**REPL Toolkit** is a production-ready Python library for building interactive command-line applications with async support. It provides a modern REPL (Read-Eval-Print Loop) framework that handles terminal UI, keyboard shortcuts, command routing, and both interactive and headless (batch) processing modes.
-
-### What This Library Does
-
-- **Interactive Terminal UIs**: Build chat-like interfaces for CLIs
-- **Unified Action System**: Single API for both typed commands (`/help`) and keyboard shortcuts (`F1`)
-- **Async-Native**: Full asyncio support for API calls, database queries, etc.
-- **Image Clipboard Support**: Handle images from clipboard alongside text
-- **Headless Mode**: Process stdin for batch operations and pipelines
-- **Tab Completion**: Customizable completion for commands and values
-
-### Target Use Cases
-
-- AI chat clients (Claude, ChatGPT, local models)
-- Database query tools (SQL/NoSQL interactive clients)
-- System monitoring dashboards
-- Configuration editors with validation
-- Game development consoles
-- Log analysis tools
-- API testing clients
+**Purpose**: Build interactive command-line applications with unified action system and async support  
+**Type**: Library  
+**Language**: Python 3.8+  
+**Repository**: https://github.com/bassmanitram/repl-toolkit
 
 ---
 
-## Repository Structure
+## What You Need to Know
 
-```
-repl-toolkit/
-├── repl_toolkit/              # Main package
-│   ├── __init__.py           # Public API exports
-│   ├── async_repl.py         # Interactive REPL implementation
-│   ├── headless_repl.py      # Stdin batch processing
-│   ├── ptypes.py             # Protocol definitions (AsyncBackend, etc.)
-│   ├── formatting.py         # Auto-formatting utilities (JSON, YAML, etc.)
-│   ├── images.py             # Image clipboard handling
-│   ├── actions/              # Action system
-│   │   ├── action.py         # Action and ActionContext dataclasses
-│   │   └── registry.py       # ActionRegistry implementation
-│   ├── completion/           # Tab completion
-│   │   ├── prefix.py         # Simple prefix completion
-│   │   ├── shell_expansion.py # Shell-style completion ($VAR, etc.)
-│   │   └── README.md         # Completion system docs
-│   └── tests/                # Test suite
-│       ├── test_async_repl.py
-│       ├── test_headless.py
-│       ├── test_actions.py
-│       ├── test_completion.py
-│       ├── test_images.py
-│       └── conftest.py       # Pytest fixtures
-├── examples/                  # Working examples
-│   ├── basic_usage.py
-│   ├── advanced_usage.py
-│   ├── headless_usage.py
-│   ├── image_paste_demo.py
-│   └── completion_demo.py
-├── docs/
-│   ├── ARCHITECTURE.md        # Detailed architecture docs
-│   └── GITHUB_ACTIONS_SETUP.md
-├── .github/workflows/         # CI/CD pipelines
-│   ├── test.yml              # Test suite (3.8-3.12)
-│   ├── lint.yml              # Linting (black, flake8, isort)
-│   ├── quality.yml           # Type checking (mypy)
-│   ├── examples.yml          # Example validation
-│   └── dependencies.yml      # Security checks (bandit, safety)
-├── local/                     # Development notes (gitignored)
-├── pyproject.toml            # Project metadata & config
-├── pytest.ini                # Pytest configuration
-├── requirements.txt          # Runtime dependencies
-├── README.md                 # User documentation
-├── CHANGELOG.md              # Version history
-├── CONTRIBUTING.md           # Contribution guidelines
-└── LICENSE                   # MIT License
-```
+**This is**: A REPL framework that provides terminal UI, keyboard shortcuts, command routing, and both interactive and headless (batch) modes. Applications implement the `AsyncBackend` protocol to handle user input, and the library handles all the terminal UI complexity (input editing, history, completion, etc.).
+
+**Architecture in one sentence**: Protocol-based framework where user's backend implements `handle_input()` and the library wraps it with either AsyncREPL (interactive UI) or HeadlessREPL (stdin processing).
+
+**The ONE constraint that must not be violated**: Backend must implement `AsyncBackend.handle_input()` protocol - this is the contract between library and application.
 
 ---
 
-## Core Architecture
+## Mental Model
 
-### Component Hierarchy
-
-```
-AsyncREPL (Interactive UI)
-    ├── ActionRegistry (Commands & Shortcuts)
-    │   ├── Built-in Actions (/help, /exit, /paste)
-    │   └── Custom Actions (user-defined)
-    ├── Tab Completion (optional)
-    └── Backend (user's business logic)
-
-HeadlessREPL (Batch Processing)
-    ├── ActionRegistry (same system)
-    └── Backend (same business logic)
-```
-
-### Key Design Patterns
-
-1. **Protocol-Based**: Uses Python protocols (`AsyncBackend`, `ActionHandler`, `Completer`) for loose coupling and testability
-2. **Late Backend Binding**: REPL can be initialized before backend is available (useful for resource contexts)
-3. **Unified Action System**: Commands and shortcuts use the same action definition
-4. **Context-Rich Execution**: Actions receive rich context (trigger method, arguments, backend access)
-
-### Action System
-
-The action system is the heart of the library:
-
-```python
-@dataclass
-class Action:
-    name: str                    # Unique identifier
-    description: str             # Help text
-    category: str               # Grouping for help display
-    handler: Optional[Callable]  # Function to execute
-    command: Optional[str]       # "/command" format
-    keys: Optional[str]          # "F1", "c-s", etc.
-    enabled: bool = True
-    hidden: bool = False
-```
-
-**Action Execution Flow:**
-1. User types command or presses key
-2. Registry looks up action
-3. Creates `ActionContext` with metadata
-4. Executes handler with context
-5. Handler can access backend, args, trigger method
+- This is a **UI framework**, not a chatbot - it provides the terminal interface, applications provide the logic
+- **Action system** unifies commands (`/help`) and keyboard shortcuts (`F1`) - same handler serves both
+- **Late binding** - REPL can be initialized before backend exists (useful for resource initialization)
+- **Two modes**: Interactive (prompt-toolkit UI) and Headless (stdin line-by-line) share action system
+- **Protocol-based** - loose coupling via Python protocols, easy to test with mocks
 
 ---
 
-## Technical Stack
+## Codebase Organization
 
-### Core Dependencies
+```
+repl_toolkit/
+├── async_repl.py       # Interactive REPL with prompt-toolkit UI
+├── headless_repl.py    # Stdin batch processing mode
+├── ptypes.py           # Protocol definitions: AsyncBackend, ActionHandler, Completer
+├── actions/            # Action system: Action dataclass, ActionRegistry, ActionContext
+├── completion/         # Tab completion: prefix, shell expansion
+├── formatting.py       # Auto-formatting for JSON/YAML/etc
+├── images.py           # Clipboard image handling
+└── tests/              # Test suite mirroring package structure
+```
 
-- **Python 3.8+** (supports 3.8, 3.9, 3.10, 3.11, 3.12)
-- **prompt-toolkit** ≥3.0.0 (terminal UI framework)
-- **pyclip** ≥0.7.0 (clipboard access, optional)
+**Navigation Guide**:
 
-### Development Dependencies
+| When you need to... | Start here | Why |
+|---------------------|------------|-----|
+| Add new built-in command | `async_repl.py` → `_create_builtin_actions()` | Where built-ins are registered |
+| Modify action execution | `actions/registry.py` → `execute_action()` | Central dispatch point |
+| Change input handling | `async_repl.py` → `_process_input()` | Where Enter/Alt+Enter logic lives |
+| Add completion type | `completion/` → create new module | Implement Completer protocol |
+| Fix headless mode issue | `headless_repl.py` → `run()` | Stdin processing logic |
 
-- **Testing**: pytest, pytest-asyncio, pytest-cov
-- **Linting**: black, flake8, isort
-- **Type Checking**: mypy
-- **Security**: bandit, safety
-- **Build**: build, twine
-
-### CI/CD
-
-**GitHub Actions Workflows:**
-- Tests run on Python 3.8-3.12 (Ubuntu, Windows, macOS)
-- Linting enforces code style
-- Type checking with mypy
-- Examples validated
-- Security scanning weekly
+**Entry points**:
+- Interactive: `AsyncREPL.run(backend)` - Starts prompt-toolkit session
+- Headless: `run_headless_mode(backend)` - Processes stdin until EOF
+- Tests: `tests/` - Protocol-based mocking makes testing easy
 
 ---
 
-## Development Workflow
+## Critical Invariants
 
-### Setup
+These rules MUST be maintained:
 
-```bash
-# Clone repo
-git clone https://github.com/bassmanitram/repl-toolkit.git
-cd repl-toolkit
+1. **Backend protocol compliance**: Backend must implement `async def handle_input(user_input: str, images: Optional[Dict] = None) -> bool`
+   - **Why**: This is the contract - REPL calls this method for every input
+   - **Breaks if violated**: Type errors at runtime, REPL can't process input
+   - **Enforced by**: Python protocols (mypy checks), runtime will fail immediately
 
-# Create virtual environment
-python3 -m venv .venv
-source .venv/bin/activate  # or `.venv\Scripts\activate` on Windows
+2. **Action names must be unique**: ActionRegistry enforces one action per name
+   - **Why**: Name is used for lookup when executing, duplicates cause ambiguity
+   - **Breaks if violated**: Later registration overwrites earlier (silent failure mode)
+   - **Enforced by**: ActionRegistry raises error on duplicate registration
 
-# Install in editable mode with dev dependencies
-pip install -e ".[dev,test]"
-```
-
-### Running Tests
-
-```bash
-# All tests with coverage
-pytest
-
-# Specific test file
-pytest repl_toolkit/tests/test_actions.py
-
-# Watch mode (requires pytest-watch)
-ptw
-
-# Coverage report
-pytest --cov=repl_toolkit --cov-report=html
-```
-
-### Code Quality
-
-```bash
-# Format code
-black repl_toolkit/
-
-# Sort imports
-isort repl_toolkit/
-
-# Lint
-flake8 repl_toolkit/
-
-# Type check
-mypy repl_toolkit/
-
-# Security scan
-bandit -r repl_toolkit/
-
-# All checks (what CI runs)
-black --check repl_toolkit/
-isort --check repl_toolkit/
-flake8 repl_toolkit/
-mypy repl_toolkit/
-pytest
-```
-
-### Running Examples
-
-```bash
-# Basic echo bot
-python examples/basic_usage.py
-
-# Advanced chat bot
-python examples/advanced_usage.py
-
-# Headless mode
-echo -e "test input\n/send" | python examples/headless_usage.py
-
-# Image paste demo
-python examples/image_paste_demo.py
-```
+3. **Async consistency**: All backend methods and REPL operations are async
+   - **Why**: Enables non-blocking I/O for API calls, database queries
+   - **Breaks if violated**: Sync code blocks event loop, UI freezes
+   - **Enforced by**: Protocol signatures, type checking, runtime event loop errors
 
 ---
 
-## Key Concepts
+## Non-Obvious Behaviors & Gotchas
 
-### 1. AsyncBackend Protocol
+Things that surprise people:
 
-User applications implement this protocol:
+1. **Enter vs Alt+Enter behavior changed in v2.0.2**:
+   - **Why it's this way**: Commands execute immediately (better UX), Alt+Enter sends normal text
+   - **Common mistake**: Expecting Enter to accumulate text
+   - **Correct approach**: Type text, press Enter for commands; Alt+Enter to send text to backend without command execution
 
-```python
-class AsyncBackend(Protocol):
-    async def handle_input(
-        self, 
-        user_input: str, 
-        images: Optional[Dict[str, ImageData]] = None
-    ) -> bool:
-        """
-        Process user input.
-        
-        Returns:
-            bool: True to continue REPL, False to exit
-        """
-        ...
-```
+2. **Logging is silent by default (v2.0.0+)**:
+   - **Why**: Library shouldn't pollute application output
+   - **Watch out for**: Errors are logged but not displayed - applications must configure logging
+   - **Correct approach**: Set up logging in your app: `logging.basicConfig(level=logging.ERROR)`
 
-### 2. Action System
+3. **Late backend binding means REPL can start before backend ready**:
+   - **Why**: Useful for resources that need initialization (database connections, API clients)
+   - **Pattern**: `repl = AsyncREPL()` then later `await repl.run(backend_instance)`
+   - **Gotcha**: Actions can't access backend in `__init__`, only during execution via `ActionContext`
 
-**Three Action Types:**
-
-1. **Dual Actions** (command + shortcut)
-   ```python
-   Action(name="help", handler=show_help, 
-          command="/help", keys="F1")
-   ```
-
-2. **Command-Only**
-   ```python
-   Action(name="search", handler=search, 
-          command="/search")
-   ```
-
-3. **Shortcut-Only**
-   ```python
-   Action(name="save", handler=save, 
-          keys="c-s")  # Ctrl+S
-   ```
-
-**Built-in Actions:**
-- `/help` or `F1` - Show help
-- `/shortcuts` - List shortcuts
-- `/exit` or `/quit` - Exit REPL
-- `/paste` or `F6` - Paste from clipboard
-
-### 3. Input Modes
-
-**Interactive Mode:**
-- Enter: Execute commands immediately
-- Alt+Enter: Send normal text to backend
-- Multiline input supported
-
-**Headless Mode:**
-- Read from stdin line by line
-- Accumulate until `/send` command
-- EOF auto-sends remaining buffer
-
-### 4. Image Handling
-
-Images appear as placeholders in text:
-
-```python
-user_input = "Check this image {{image:img_001}}"
-images = {
-    "img_001": ImageData(
-        data=b"...",  # Raw bytes
-        media_type="image/png"
-    )
-}
-```
-
-Utility functions:
-- `parse_image_references(text)` - Extract image IDs
-- `iter_content_parts(text, images)` - Iterate text and images
-- `detect_media_type(data)` - Detect image format
-
-### 5. Error Handling
-
-The library uses Python's logging framework:
-
-```python
-import logging
-logging.basicConfig(level=logging.WARNING)
-```
-
-**Log Levels:**
-- `ERROR`: Critical failures (action errors, clipboard issues)
-- `WARNING`: Expected failures (validation, missing deps)
-- `DEBUG`: Execution flow tracing
-
-**No direct output** - applications control error display.
+4. **Image placeholders are opaque to backend**:
+   - **Why**: Backend receives `{{image:img_001}}` string, not actual image data
+   - **Watch out for**: If you want image data, you must look it up in the `images` dict parameter
+   - **Correct approach**: Use `parse_image_references()` and `images` dict together
 
 ---
 
-## Common Patterns
+## Architecture Decisions
 
-### Basic REPL
+**Why protocol-based instead of inheritance?**
+- **Trade-off**: Protocols are more flexible (duck typing) but less discoverable than base classes
+- **Alternative considered**: `class MyBackend(REPLBackend)` base class approach
+- **Why protocols win**: Users don't need to import anything, just match the signature. Easier testing (mock any object with matching methods).
 
-```python
-import asyncio
-from repl_toolkit import AsyncREPL
+**Why unified action system for commands and shortcuts?**
+- **Trade-off**: Single Action dataclass is more complex but reduces code duplication
+- **Alternative considered**: Separate CommandRegistry and ShortcutRegistry
+- **Implications**: One registration point, one handler serves both triggers, simpler for users
 
-class MyBackend:
-    async def handle_input(self, user_input: str) -> bool:
-        print(f"You said: {user_input}")
-        return True
+**Why both AsyncREPL and HeadlessREPL?**
+- **Trade-off**: Two implementations to maintain but enables different use cases
+- **Alternative considered**: Single REPL with mode parameter
+- **Why separate wins**: Different dependencies (prompt-toolkit not needed for headless), different testing strategies, cleaner code
 
-async def main():
-    repl = AsyncREPL()
-    await repl.run(MyBackend())
-
-asyncio.run(main())
-```
-
-### With Actions
-
-```python
-from repl_toolkit import AsyncREPL, ActionRegistry, Action, ActionContext
-
-def setup_actions():
-    registry = ActionRegistry()
-    
-    def list_handler(ctx: ActionContext):
-        print("List action triggered!")
-        if ctx.triggered_by == "command":
-            print(f"Args: {ctx.args}")
-    
-    registry.register_action(Action(
-        name="list",
-        description="List items",
-        handler=list_handler,
-        command="/list",
-        keys="F2"
-    ))
-    
-    return registry
-
-async def main():
-    backend = MyBackend()
-    actions = setup_actions()
-    repl = AsyncREPL(action_registry=actions)
-    await repl.run(backend)
-```
-
-### Headless Processing
-
-```python
-from repl_toolkit import run_headless_mode
-
-class BatchProcessor:
-    async def handle_input(self, text: str) -> bool:
-        # Process accumulated input
-        print(f"Processed: {len(text)} chars")
-        return True
-
-# Usage: cat input.txt | python script.py
-success = await run_headless_mode(BatchProcessor())
-```
-
-### Tab Completion
-
-```python
-from repl_toolkit import AsyncREPL, PrefixCompleter
-
-completer = PrefixCompleter(["/help", "/list", "/exit"])
-repl = AsyncREPL(completer=completer)
-```
+**Why ActionContext instead of passing args directly to handlers?**
+- **Trade-off**: Extra dataclass but enables future extension without breaking handlers
+- **Alternative considered**: `handler(backend, args, trigger_method)` function signature
+- **Why context wins**: Can add new metadata (user_id, session_id, etc.) without breaking existing handlers
 
 ---
 
-## Testing Patterns
+## Key Patterns & Abstractions
 
-### Mock Backend
+**Pattern 1: Protocol-Based Interface**
+- **Used for**: Backend, ActionHandler, Completer - all major extension points
+- **Structure**: Define protocol with required methods, users implement matching signature
+- **Examples in code**: `AsyncBackend` in `ptypes.py` - no inheritance required, just matching method
 
-```python
-class MockBackend:
-    def __init__(self):
-        self.inputs = []
-    
-    async def handle_input(self, user_input: str) -> bool:
-        self.inputs.append(user_input)
-        return True
+**Pattern 2: Registry Pattern**
+- **Used for**: Action registration and lookup
+- **Why not direct dict**: Registry validates (no duplicates), provides helper methods (list by category), encapsulates lookup logic
+- **Structure**: `ActionRegistry` holds `Dict[str, Action]`, provides `register_action()` and `execute_action()`
+
+**Pattern 3: Context Object**
+- **Used for**: Passing rich metadata to action handlers
+- **Structure**: `ActionContext` bundles registry, backend, args, trigger method
+- **Why**: Future-proof (can add fields without breaking handlers), self-documenting (ctx.backend vs positional arg)
+
+**Anti-pattern to avoid: Blocking I/O in backend**
+- **Don't do this**: `def handle_input(self, text: str)` (sync function) with `time.sleep()` or blocking HTTP calls
+- **Why it fails**: Blocks event loop, freezes UI, defeats purpose of async
+- **Instead**: `async def handle_input()` with `await asyncio.sleep()` or `await aiohttp.get()`
+
+---
+
+## State & Data Flow
+
+**State management**:
+- **Persistent state**: None (applications handle their own persistence)
+- **Runtime state**: ActionRegistry (actions), REPL session state (history, completion cache), backend state (application-specific)
+- **No state here**: Action handlers are stateless functions (access state via `context.backend`)
+
+**Data flow**:
+```
+User input → prompt-toolkit → AsyncREPL._process_input() → ActionRegistry.execute_action()
+                                                         ↓ (if action)           ↓ (if text)
+                                                  Action.handler()         Backend.handle_input()
+                                                         ↓                           ↓
+                                                  Prints output          Returns bool (continue?)
 ```
 
-### Testing Actions
-
-```python
-def test_action_execution():
-    registry = ActionRegistry()
-    backend = MockBackend()
-    
-    # Register action
-    action = Action(
-        name="test",
-        description="Test action",
-        category="Test",
-        handler=lambda ctx: backend.inputs.append("triggered"),
-        command="/test"
-    )
-    registry.register_action(action)
-    
-    # Execute
-    context = ActionContext(
-        registry=registry,
-        backend=backend,
-        triggered_by="command"
-    )
-    registry.execute_action("test", context)
-    
-    assert "triggered" in backend.inputs
-```
-
-### Async Testing
-
-```python
-@pytest.mark.asyncio
-async def test_repl_run():
-    backend = MockBackend()
-    repl = AsyncREPL()
-    
-    # Test would use mock input/output
-    # See repl_toolkit/tests/test_async_repl.py for examples
-```
+**Critical paths**: 
+- Input processing must distinguish commands (starts with `/`) from text - this routing is core to UX
+- Actions must be able to access backend via `ActionContext` - breaks if context doesn't carry backend reference
+- Backend's return value controls REPL continuation - `False` means exit, `True` means continue
 
 ---
 
-## Configuration Files
+## Integration Points
 
-### pyproject.toml
+**This project depends on** (upstream):
+- **prompt-toolkit**: Terminal UI framework, tightly coupled (core dependency for interactive mode)
+- **pyclip**: Clipboard access, loosely coupled (optional, paste action degrades gracefully)
 
-- **Project metadata**: version, description, dependencies
-- **Build system**: setuptools config
-- **Tool configs**: pytest, black, isort, mypy, coverage
+**Projects that depend on this** (downstream):
+- **yacba**: Uses AsyncREPL for interactive chatbot UI
+- **Your CLI applications**: Direct dependency for building interactive terminals
 
-### pytest.ini
-
-- Test paths
-- Async mode
-- Coverage options
-
-### .mypy.ini
-
-- Type checking strictness
-- Excluded paths
-- Python version targeting
-
-### .flake8
-
-- Line length (100)
-- Ignored rules
-- Excluded directories
+**Related projects** (siblings):
+- **strands-agent-factory**: Complementary (agent creation) vs repl-toolkit (UI framework)
+- **dataclass-args**: Related domain (CLI interfaces), different approach (arguments vs interactive)
 
 ---
 
-## Version History
+## Configuration Philosophy
 
-**2.0.2** (2024-12-01)
-- Commands execute immediately on Enter
-- Paste action improvements (`/paste`, `F6`)
+**What's configurable**: Actions (add/remove/modify), completion strategy, backend implementation, input processing behavior
 
-**2.0.1** (2024-11-21)
-- Fixed PrefixCompleter mid-sentence triggering
+**What's hardcoded**:
+- Input key bindings (Enter, Alt+Enter, F-keys) - defined in `async_repl.py`
+- Built-in actions (help, exit, paste) - always available
+- Protocol signatures - breaking these breaks compatibility
 
-**2.0.0** (2024-11-21)
-- Breaking: Switched to logging framework
-- Silent by default (applications configure logging)
-
-**1.3.0** (2024-11-15)
-- Image paste support
-- Shell expansion completer
-- Headless mode
+**The trap**: Trying to configure key bindings externally - currently hardcoded in `_create_key_bindings()`. If you need custom bindings, you must modify this function directly.
 
 ---
 
-## Important Notes for AI Agents
+## Testing Strategy
 
-### When Adding Features
+**What we test**:
+- **Action system**: Registration, execution, context passing, duplicate detection
+- **Input processing**: Command detection, text passthrough, multiline handling
+- **Completion**: Prefix matching, shell expansion, mid-word triggering
+- **Image handling**: Clipboard extraction, placeholder generation, format detection
 
-1. **Maintain backward compatibility** unless major version bump
-2. **Add tests** for new functionality (target 90%+ coverage)
-3. **Update documentation**: README, CHANGELOG, docstrings
-4. **Follow existing patterns**: Use protocols, dataclasses, async/await
-5. **Run all checks**: black, isort, flake8, mypy, pytest
+**What we don't test**:
+- **prompt-toolkit internals**: Trust the library works
+- **Terminal rendering**: Too complex to test reliably
+- **Actual user interaction**: Manual testing only
 
-### Code Style
+**Test organization**: Tests mirror package structure (test_async_repl.py, test_actions.py, etc.). Heavy use of mocks for backend (MockBackend pattern).
 
-- **Line length**: 100 characters
-- **Formatting**: black (auto-format)
-- **Imports**: isort (auto-sort)
-- **Type hints**: Required for public APIs
-- **Docstrings**: Google style, all public functions
-
-### Testing Requirements
-
-- **Coverage**: 90%+ preferred
-- **Test organization**: Mirror package structure
-- **Async tests**: Use `@pytest.mark.asyncio`
-- **Fixtures**: Defined in `conftest.py`
-- **Mock backend**: Use `MockBackend` pattern
-
-### Git Workflow
-
-- **Branch naming**: `feature/description` or `fix/description`
-- **Commits**: Descriptive messages, logical units
-- **PR requirements**: All CI checks must pass
-- **Version bumps**: Update `pyproject.toml` and `CHANGELOG.md`
-
-### Documentation Standards
-
-- **README**: User-focused, example-driven
-- **ARCHITECTURE.md**: Developer-focused, detailed
-- **CHANGELOG.md**: Keep a Changelog format
-- **Code comments**: Why, not what
-- **Docstrings**: What and how
+**Mocking strategy**: Mock backends (simple class with list to track calls), mock clipboard (monkeypatch for tests), real action execution (no mocking of action system internals).
 
 ---
 
-## Local Development Directory
+## Common Problems & Diagnostic Paths
 
-The `local/` directory (gitignored) contains:
-- Development notes and research
-- Implementation proposals
-- Release planning documents
-- Text editing UX research
+**Symptom**: Commands not executing (e.g., `/help` does nothing)
+- **Most likely cause**: Action not registered or name mismatch
+- **Check**: Print `action_registry.list_actions()` to see what's registered
+- **Fix**: Register action with correct name, ensure handler doesn't raise exception
 
-These are working documents and not part of the package.
+**Symptom**: UI freezes when processing input
+- **Likely cause**: Backend is doing blocking I/O (not using async)
+- **Diagnostic**: Add print statement at start of `handle_input()` - if it prints but doesn't return, backend is blocking
+- **Solution approach**: Convert blocking calls to async (use aiohttp instead of requests, asyncio.sleep instead of time.sleep)
 
----
+**Symptom**: Alt+Enter doesn't send text to backend
+- **Why it happens**: Application might be registering action that intercepts input
+- **Diagnostic**: Check if custom actions are catching the input before backend
+- **Prevention**: Ensure custom commands have `/` prefix, don't intercept plain text
 
-## Contact & Resources
-
-- **GitHub**: https://github.com/bassmanitram/repl-toolkit
-- **PyPI**: https://pypi.org/project/repl-toolkit/
-- **Issues**: https://github.com/bassmanitram/repl-toolkit/issues
-- **License**: MIT
-
----
-
-## Quick Reference
-
-### Common Commands
-
-```bash
-# Run tests
-pytest
-
-# Format code
-black repl_toolkit/ && isort repl_toolkit/
-
-# Type check
-mypy repl_toolkit/
-
-# Run example
-python examples/basic_usage.py
-
-# Build package
-python -m build
-
-# Install locally
-pip install -e ".[dev,test]"
-```
-
-### Key Files to Modify
-
-- **Add feature**: Start in `repl_toolkit/`
-- **Add test**: Add to `repl_toolkit/tests/`
-- **Update docs**: Update `README.md`, `CHANGELOG.md`
-- **Add example**: Add to `examples/`
-- **Change API**: Update `repl_toolkit/__init__.py` exports
-
-### Important Patterns
-
-```python
-# Protocol definition
-class MyProtocol(Protocol):
-    def method(self) -> None: ...
-
-# Dataclass with defaults
-@dataclass
-class MyData:
-    required: str
-    optional: str = "default"
-
-# Async backend
-async def handle_input(self, text: str) -> bool:
-    return True
-
-# Action handler
-def my_handler(context: ActionContext):
-    # Access: context.backend, context.args, context.triggered_by
-    pass
-```
+**Symptom**: Tests pass individually but fail when run together
+- **Why it happens**: Shared state in action registry or backend
+- **Diagnostic**: Run tests with `pytest -v` to see which test fails when
+- **Solution**: Use fresh ActionRegistry per test, reset backend state in fixtures
 
 ---
 
-**End of Bootstrap Documentation**
+## Modification Patterns
 
-This document provides comprehensive context for AI development assistants working on the REPL Toolkit project. Refer to specific files for implementation details.
+**To add new built-in action**:
+1. Add action creation in `async_repl.py` → `_create_builtin_actions()`
+2. Implement handler function (can be nested function or module-level)
+3. Register with ActionRegistry: `registry.register_action(Action(...))`
+4. Add tests in `tests/test_async_repl.py` or `tests/test_actions.py`
+
+**To add new completion strategy**:
+1. Create module in `completion/my_completer.py`
+2. Implement `Completer` protocol: `def get_completions(self, text: str, cursor_pos: int) -> List[str]`
+3. Add tests in `tests/test_completion.py`
+4. Document in `completion/README.md` and main README.md
+
+**To modify input key behavior** (e.g., change Enter behavior):
+1. Update `async_repl.py` → `_create_key_bindings()` function
+2. Be aware: This affects all users, consider making it configurable via AsyncREPL constructor
+3. Add tests to verify new behavior doesn't break existing use cases
+4. Document as breaking change in CHANGELOG.md (likely requires major version bump)
+
+---
+
+## When to Update This Document
+
+Update this bootstrap when:
+- [x] Core architecture changes (e.g., remove protocol-based approach, add new REPL mode)
+- [x] Action system fundamentally changes (e.g., remove unified command/shortcut pattern)
+- [x] New major integration added (e.g., async context managers for backends)
+- [x] Testing strategy shifts (e.g., add property-based testing)
+
+Don't update for:
+- ❌ New built-in actions added (extend existing pattern)
+- ❌ New completion strategies (extend existing protocol)
+- ❌ Bug fixes in action execution or input processing
+- ❌ UI improvements or prompt-toolkit integration changes
+- ❌ Documentation/README updates
+
+---
+
+**Last Updated**: 2025-12-03  
+**Last Architectural Change**: v2.0.0 - Switched to logging framework (silent by default)
