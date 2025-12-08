@@ -39,7 +39,13 @@ __version__ = "2.0.2"
 from .actions import Action, ActionContext, ActionRegistry
 from .async_repl import AsyncREPL, run_async_repl
 from .completion import PrefixCompleter, ShellExpansionCompleter
-from .formatting import auto_format, create_auto_printer, detect_format_type, print_auto_formatted, print_formatted_text
+from .formatting import (
+    auto_format,
+    create_auto_printer,
+    detect_format_type,
+    print_auto_formatted,
+    print_formatted_text,
+)
 from .headless_repl import HeadlessREPL, run_headless_mode
 from .images import (
     ImageData,
@@ -69,7 +75,7 @@ __all__ = [
     "create_auto_printer",
     "detect_format_type",
     "print_auto_formatted",
-	"print_formatted_text",
+    "print_formatted_text",
     # Images
     "ImageData",
     "ParsedContent",
