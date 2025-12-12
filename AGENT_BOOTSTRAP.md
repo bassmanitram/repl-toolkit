@@ -1,8 +1,8 @@
 # REPL Toolkit - Agent Bootstrap
 
-**Purpose**: Build interactive command-line applications with unified action system and async support  
-**Type**: Library  
-**Language**: Python 3.8+  
+**Purpose**: Build interactive command-line applications with unified action system and async support
+**Type**: Library
+**Language**: Python 3.8+
 **Repository**: https://github.com/bassmanitram/repl-toolkit
 
 ---
@@ -169,7 +169,7 @@ User input → prompt-toolkit → AsyncREPL._process_input() → ActionRegistry.
                                                   Prints output          Returns bool (continue?)
 ```
 
-**Critical paths**: 
+**Critical paths**:
 - Input processing must distinguish commands (starts with `/`) from text - this routing is core to UX
 - Actions must be able to access backend via `ActionContext` - breaks if context doesn't carry backend reference
 - Backend's return value controls REPL continuation - `False` means exit, `True` means continue
@@ -287,5 +287,5 @@ Don't update for:
 
 ---
 
-**Last Updated**: 2025-12-03  
+**Last Updated**: 2025-12-03
 **Last Architectural Change**: v2.0.0 - Switched to logging framework (silent by default)
