@@ -162,8 +162,7 @@ def main():
     print("\n" + "=" * 70)
     print("KEY FEATURES")
     print("=" * 70)
-    print(
-        """
+    print("""
 1. Auto-detection: Automatically detects HTML, ANSI, or plain text
 2. No false positives: Handles edge cases like 'a < b' correctly
 3. Drop-in replacement: create_auto_printer() works like print()
@@ -187,8 +186,7 @@ USAGE IN YOUR CODE:
         response_prefix="<b>Bot:</b> ",
         printer=create_auto_printer()
     )
-    """
-    )
+    """)
 
 
 if __name__ == "__main__":
