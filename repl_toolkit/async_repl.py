@@ -343,6 +343,11 @@ class AsyncREPL:
                 if user_input.strip().startswith("/"):
                     # Handle commands synchronously
                     self.action_registry.handle_command(user_input.strip())
+                    # Yield to event loop to ensure any pending async work completes
+                    # before accepting the next user input. This prevents race conditions
+                    # where commands like /undo modify agent state and the next message
+                    # is processed before the modifications are fully visible.
+                    await asyncio.sleep(0)
                     continue
 
                 logger.debug(f"Processing user input: {user_input}")

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import sys
 from typing import Optional
@@ -112,6 +113,11 @@ class HeadlessREPL:
                 else:
                     # Synchronous command processing
                     self._execute_command(line)
+                    # Yield to event loop to ensure any pending async work completes
+                    # before processing the next line. This prevents race conditions
+                    # where commands modify backend state and the next line
+                    # is processed before the modifications are fully visible.
+                    await asyncio.sleep(0)
             else:
                 # Synchronous buffer addition
                 self._add_to_buffer(line)
