@@ -21,6 +21,8 @@ from prompt_toolkit.input import create_input
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.keys import Keys
 from prompt_toolkit.output import DummyOutput
+from prompt_toolkit.patch_stdout import patch_stdout
+from prompt_toolkit.shortcuts import print_formatted_text
 
 from .actions import ActionContext, ActionRegistry
 from .images import ImageData, create_paste_action
@@ -67,7 +69,13 @@ class AsyncREPL:
         logger.debug("AsyncREPL.__init__() entry")
 
         self.prompt_string = HTML(prompt_string or "User: ")
-        self.action_registry = action_registry or ActionRegistry()
+
+        # Create ActionRegistry with prompt_toolkit printer for interactive mode
+        # This ensures action output respects the prompt and redraws cleanly
+        if action_registry is None:
+            action_registry = ActionRegistry(printer=lambda msg: print_formatted_text(msg))
+
+        self.action_registry = action_registry
 
         # Image support
         self._image_buffer: Dict[str, ImageData] = {}
@@ -335,7 +343,9 @@ class AsyncREPL:
 
         while True:
             try:
-                user_input = await self.session.prompt_async()
+                # Wrap prompt in patch_stdout to handle any print() calls
+                with patch_stdout():
+                    user_input = await self.session.prompt_async()
                 if self._should_exit(user_input):
                     break
                 if not user_input.strip():
