@@ -359,11 +359,13 @@ registry.register_action(action)
 
 Every REPL includes these by default:
 
-|---------|----------|--------------|
+| Command | Shortcut | Description |
+|---------|----------|-------------|
 | `/help [action]` | `F1` | Show help for all actions or a specific one |
 | `/shortcuts` | - | List all keyboard shortcuts |
 | `/exit` or `/quit` | - | Exit the application |
 | `/paste` | `F6` | Paste image or text from clipboard |
+| - | `F7` or `Escape, Escape` | Clear the input buffer |
 
 Commands execute immediately when you press Enter. For normal text messages, press Alt+Enter to send.
 
@@ -575,6 +577,148 @@ python examples/image_paste_demo.py
 
 # Tab completion
 python examples/completion_demo.py
+```
+
+## Implementing Cancellable Backends
+
+Backends can optionally implement cooperative cancellation to gracefully handle cancellation of long-running operations, especially those involving blocking I/O like subprocess calls or HTTP requests.
+
+### Basic Implementation
+
+```python
+from typing import Optional
+
+class CancellableBackend:
+    def __init__(self):
+        self._cancel_requested = False
+    
+    def cancel(self, message: Optional[str] = None) -> None:
+        """Optional method to support cooperative cancellation."""
+        self._cancel_requested = True
+        if message:
+            print(f"Cancellation: {message}")
+    
+    async def handle_input(self, user_input: str, **kwargs) -> bool:
+        """Process input with cancellation checkpoints."""
+        # Reset flag at start of each operation
+        self._cancel_requested = False
+        
+        # Process in steps with cancellation checkpoints
+        for step in self._get_processing_steps(user_input):
+            # Check for cancellation at safe points
+            if self._cancel_requested:
+                print("Operation cancelled.")
+                return False
+            
+            # Do work
+            await self._process_step(step)
+        
+        return True
+```
+
+### When cancel() is Called
+
+The REPL automatically calls `backend.cancel()` (if implemented) when:
+- User presses **Alt+C** during operation
+- User presses **Ctrl+C** during operation  
+- Exception occurs during processing
+
+**Note**: The `cancel()` method is optional. Backends without it will fall back to async task cancellation only (via `asyncio.Task.cancel()`), which may not work for blocking operations.
+
+### Example: Cancelling Subprocess
+
+```python
+import asyncio
+import subprocess
+from typing import Optional
+
+class SubprocessBackend:
+    def __init__(self):
+        self._cancel_requested = False
+        self._current_process = None
+    
+    def cancel(self, message: Optional[str] = None) -> None:
+        """Cancel current subprocess."""
+        self._cancel_requested = True
+        if self._current_process:
+            self._current_process.terminate()  # Stop the subprocess
+    
+    async def handle_input(self, user_input: str, **kwargs) -> bool:
+        """Run command with cancellation support."""
+        self._cancel_requested = False
+        
+        try:
+            # Run subprocess in executor to avoid blocking
+            loop = asyncio.get_event_loop()
+            
+            def run_command():
+                if self._cancel_requested:
+                    return None
+                self._current_process = subprocess.Popen(
+                    user_input.split(),
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE
+                )
+                stdout, stderr = self._current_process.communicate()
+                return stdout.decode()
+            
+            result = await loop.run_in_executor(None, run_command)
+            
+            if result is None:
+                print("Command cancelled.")
+                return False
+            
+            print(result)
+            return True
+            
+        finally:
+            self._current_process = None
+```
+
+### Guidelines for cancel() Implementation
+
+1. **Non-blocking**: Method must return immediately
+2. **Set flag**: Use internal flag that handle_input() checks
+3. **Reset flag**: Clear at start of each operation
+4. **Safe checkpoints**: Only check flag at safe cancellation points
+5. **Cleanup**: Release resources when cancellation detected
+
+## Action Output Best Practices
+
+Actions in **interactive mode** automatically use prompt_toolkit's output functions to maintain clean prompt display. You don't need to do anything special - just use `context.printer`:
+
+```python
+def my_action(context: ActionContext):
+    # Recommended: Use context.printer
+    context.printer("This output maintains clean prompt display")
+    context.printer("Multiple lines work correctly")
+    
+    # Also works: Standard print() is automatically patched
+    print("This also works and maintains prompt")
+```
+
+**Why this matters**: In interactive mode, standard `print()` can corrupt the prompt display. The toolkit automatically handles this by:
+- Using `print_formatted_text()` for action output
+- Wrapping the prompt in `patch_stdout()` to catch any print() calls
+
+**Headless mode**: Continues to use standard `print()` (correct for logs/pipes).
+
+### Formatted Output
+
+Interactive mode supports rich formatting:
+
+```python
+from prompt_toolkit import HTML, ANSI
+
+def formatted_action(context: ActionContext):
+    # HTML-style formatting
+    context.printer(HTML('<b>Bold</b> <green>Green</green>'))
+    
+    # ANSI codes
+    context.printer(ANSI('\x1b[1mBold text\x1b[0m'))
+    
+    # Plain text (always works)
+    context.printer('Plain text')
 ```
 
 ## Advanced Features

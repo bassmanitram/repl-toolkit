@@ -5,15 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.3] - 2025-01-28
+## [2.1.0] - 2025-01-28
 
 ### Added
 
-- **Buffer Clear Keybindings**: Added two new shortcuts to clear the input buffer
+- **Buffer Clear Keybindings**: Added two new shortcuts to clear the input buffer in interactive mode
   - `F7` - Single key, easy and discoverable
   - `Escape, Escape` - Double escape for intuitive clear operation
   - No command form (e.g., `/clear`) to avoid namespace collisions with other packages
   - Works in interactive mode only (not applicable to headless mode buffer management)
+
+- **Cooperative Cancellation Support**: Backends can now optionally implement `cancel()` method for graceful cancellation
+  - Enables backends to handle cancellation of blocking operations (subprocess calls, HTTP requests, etc.)
+  - Signal sent before `task.cancel()` to allow cleanup and state management
+  - Optional - existing backends without `cancel()` continue to work unchanged
+  - Called automatically on Alt+C, Ctrl+C, or error conditions
+  - Fully backward compatible - checked via `hasattr()` pattern
+  - Comprehensive documentation in `AsyncBackend` Protocol docstring
+  - 19 new tests covering cancellable and non-cancellable backends
+
+- **Interactive Mode Output Handling**: Actions now use prompt_toolkit output methods for clean prompt redraw
+  - ActionRegistry in interactive mode uses `print_formatted_text()` instead of `print()`
+  - Prompt wrapped in `patch_stdout()` to catch any stray print() calls
+  - Headless mode correctly continues to use standard `print()` for logs/pipes
+  - Fixes issue where key binding output would corrupt the prompt display
+  - Supports formatted output (ANSI codes, HTML)
+  - Fully backward compatible with existing actions
+  - 17 new tests covering output handling in both modes
 
 ### Fixed
 
@@ -23,6 +41,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Applies to both interactive (`AsyncREPL`) and headless (`HeadlessREPL`) modes
   - Critical for commands like `/undo` that modify agent state asynchronously
   - Prevents inconsistent behavior in batch processing scenarios
+
+### Documentation
+
+- Added comprehensive documentation for optional `cancel()` method in AsyncBackend
+- Updated examples showing cooperative cancellation implementation
+- Added guide for implementing cancellable backends
 
 ## [2.0.2] - 2025-12-01
 

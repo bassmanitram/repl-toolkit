@@ -9,7 +9,7 @@
 
 ## What You Need to Know
 
-**This is**: A REPL framework that provides terminal UI, keyboard shortcuts, command routing, and both interactive and headless (batch) modes. Applications implement the `AsyncBackend` protocol to handle user input, and the library handles all the terminal UI complexity (input editing, history, completion, etc.).
+**This is**: A REPL framework that provides terminal UI, keyboard shortcuts, command routing, and both interactive and headless (batch) modes. Applications implement the `AsyncBackend` protocol to handle user input, and the library handles all the terminal UI complexity (input editing, history, completion, etc.). Supports optional cooperative cancellation for blocking operations and automatic prompt maintenance in interactive mode.
 
 **Architecture in one sentence**: Protocol-based framework where user's backend implements `handle_input()` and the library wraps it with either AsyncREPL (interactive UI) or HeadlessREPL (stdin processing).
 
@@ -270,6 +270,19 @@ User input → prompt-toolkit → AsyncREPL._process_input() → ActionRegistry.
 
 ---
 
+## New in v2.1.0
+
+**Cooperative Cancellation**: Backends can optionally implement `cancel(message: Optional[str] = None)` method for graceful cancellation of blocking operations. REPL calls this before `task.cancel()` on Alt+C, Ctrl+C, or exceptions. Fully backward compatible - checked via `hasattr()`.
+
+**Interactive Output Handling**: Interactive mode actions automatically use `print_formatted_text()` instead of `print()` to maintain clean prompt display. Actions using `context.printer` or standard `print()` work correctly. Headless mode continues to use standard `print()` for logs/pipes.
+
+**Implementation notes**:
+- Cancellation checked at three points: cancel_future (Alt+C), KeyboardInterrupt (Ctrl+C), general Exception
+- Output handling uses two-layer defense: explicit `print_formatted_text` printer + `patch_stdout` wrapper
+- Both features are optional and backward compatible
+
+---
+
 ## When to Update This Document
 
 Update this bootstrap when:
@@ -287,5 +300,5 @@ Don't update for:
 
 ---
 
-**Last Updated**: 2025-12-03
-**Last Architectural Change**: v2.0.0 - Switched to logging framework (silent by default)
+**Last Updated**: 2025-01-28
+**Last Architectural Change**: v2.1.0 - Added optional cooperative cancellation, interactive output handling
