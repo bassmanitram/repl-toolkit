@@ -425,6 +425,10 @@ class AsyncREPL:
 
             if cancel_future in done:
                 print("\nOperation cancelled by user.")
+                # Signal cancellation to backend (if supported)
+                if hasattr(backend, "cancel"):
+                    backend.cancel("Operation cancelled by user")
+
                 backend_task.cancel()
                 try:
                     await backend_task
@@ -439,6 +443,10 @@ class AsyncREPL:
             # Handle Ctrl+C during wait
             print("\nOperation cancelled by user (Ctrl+C).")
             if backend_task and not backend_task.done():
+                # Signal cancellation to backend (if supported)
+                if hasattr(backend, "cancel"):
+                    backend.cancel("Operation cancelled by user (Ctrl+C)")
+
                 backend_task.cancel()
                 try:
                     await backend_task
@@ -447,6 +455,10 @@ class AsyncREPL:
         except Exception:
             logger.exception("Error during input processing")
             if backend_task and not backend_task.done():
+                # Signal cancellation to backend (if supported)
+                if hasattr(backend, "cancel"):
+                    backend.cancel("Operation cancelled due to error")
+
                 backend_task.cancel()
                 try:
                     await backend_task

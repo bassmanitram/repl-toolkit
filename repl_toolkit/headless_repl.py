@@ -75,6 +75,10 @@ class HeadlessREPL:
             # Ctrl+C pressed - convert to clean return value
             # This prevents "Task exception was never retrieved" error
             logger.info("Headless REPL interrupted by user (Ctrl+C)")
+
+            # Signal cancellation to backend (if supported)
+            if hasattr(backend, "cancel"):
+                backend.cancel("Operation cancelled by user (Ctrl+C)")
             self.interrupted = True
             logger.debug("HeadlessREPL.run() exit - interrupted")
             return False  # Return False, don't raise
