@@ -591,28 +591,28 @@ from typing import Optional
 class CancellableBackend:
     def __init__(self):
         self._cancel_requested = False
-    
+
     def cancel(self, message: Optional[str] = None) -> None:
         """Optional method to support cooperative cancellation."""
         self._cancel_requested = True
         if message:
             print(f"Cancellation: {message}")
-    
+
     async def handle_input(self, user_input: str, **kwargs) -> bool:
         """Process input with cancellation checkpoints."""
         # Reset flag at start of each operation
         self._cancel_requested = False
-        
+
         # Process in steps with cancellation checkpoints
         for step in self._get_processing_steps(user_input):
             # Check for cancellation at safe points
             if self._cancel_requested:
                 print("Operation cancelled.")
                 return False
-            
+
             # Do work
             await self._process_step(step)
-        
+
         return True
 ```
 
@@ -620,7 +620,7 @@ class CancellableBackend:
 
 The REPL automatically calls `backend.cancel()` (if implemented) when:
 - User presses **Alt+C** during operation
-- User presses **Ctrl+C** during operation  
+- User presses **Ctrl+C** during operation
 - Exception occurs during processing
 
 **Note**: The `cancel()` method is optional. Backends without it will fall back to async task cancellation only (via `asyncio.Task.cancel()`), which may not work for blocking operations.
@@ -636,21 +636,21 @@ class SubprocessBackend:
     def __init__(self):
         self._cancel_requested = False
         self._current_process = None
-    
+
     def cancel(self, message: Optional[str] = None) -> None:
         """Cancel current subprocess."""
         self._cancel_requested = True
         if self._current_process:
             self._current_process.terminate()  # Stop the subprocess
-    
+
     async def handle_input(self, user_input: str, **kwargs) -> bool:
         """Run command with cancellation support."""
         self._cancel_requested = False
-        
+
         try:
             # Run subprocess in executor to avoid blocking
             loop = asyncio.get_event_loop()
-            
+
             def run_command():
                 if self._cancel_requested:
                     return None
@@ -661,16 +661,16 @@ class SubprocessBackend:
                 )
                 stdout, stderr = self._current_process.communicate()
                 return stdout.decode()
-            
+
             result = await loop.run_in_executor(None, run_command)
-            
+
             if result is None:
                 print("Command cancelled.")
                 return False
-            
+
             print(result)
             return True
-            
+
         finally:
             self._current_process = None
 ```
@@ -692,7 +692,7 @@ def my_action(context: ActionContext):
     # Recommended: Use context.printer
     context.printer("This output maintains clean prompt display")
     context.printer("Multiple lines work correctly")
-    
+
     # Also works: Standard print() is automatically patched
     print("This also works and maintains prompt")
 ```
@@ -713,10 +713,10 @@ from prompt_toolkit import HTML, ANSI
 def formatted_action(context: ActionContext):
     # HTML-style formatting
     context.printer(HTML('<b>Bold</b> <green>Green</green>'))
-    
+
     # ANSI codes
     context.printer(ANSI('\x1b[1mBold text\x1b[0m'))
-    
+
     # Plain text (always works)
     context.printer('Plain text')
 ```

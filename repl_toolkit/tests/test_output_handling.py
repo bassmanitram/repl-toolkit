@@ -6,9 +6,7 @@ print_formatted_text() instead of print() to maintain clean prompt display.
 """
 
 from io import StringIO
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from repl_toolkit import ActionRegistry, AsyncREPL
 from repl_toolkit.actions import Action, ActionContext
