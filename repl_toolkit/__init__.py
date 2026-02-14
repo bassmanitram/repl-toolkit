@@ -16,25 +16,28 @@ Basic usage:
     >>> repl = AsyncREPL()
     >>> await repl.run(MyBackend())
 
-With image support:
-    >>> class ImageBackend:
-    ...     async def handle_input(self, user_input: str, images=None) -> bool:
-    ...         from repl_toolkit import parse_image_references
+With cancellation support:
+    >>> from repl_toolkit import CancellableBackend
+    >>>
+    >>> class MyCancellableBackend:
+    ...     def __init__(self):
+    ...         self._cancelled = False
     ...
-    ...         parsed = parse_image_references(user_input)
-    ...         for img_id in parsed.image_ids:
-    ...             img_data = images[img_id]
-    ...             # Process image: img_data.data, img_data.media_type
+    ...     async def handle_input(self, user_input: str, **kwargs) -> bool:
+    ...         self._cancelled = False
+    ...         # ... processing with cancellation checkpoints ...
     ...         return True
+    ...
+    ...     def cancel(self, message: str = None) -> None:
+    ...         self._cancelled = True
 """
 
 import logging
 
 # Add NullHandler to prevent "No handler found" warnings
-# Applications using this library should configure their own handlers
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
-__version__ = "2.1.0"
+__version__ = "2.2.0"
 
 from .actions import Action, ActionContext, ActionRegistry
 from .async_repl import AsyncREPL, run_async_repl
@@ -55,7 +58,7 @@ from .images import (
     parse_image_references,
     reconstruct_message,
 )
-from .ptypes import ActionHandler, AsyncBackend, Completer
+from .ptypes import ActionHandler, AsyncBackend, CancellableBackend, Completer
 
 __all__ = [
     # Core REPL
@@ -86,5 +89,6 @@ __all__ = [
     # Protocols
     "ActionHandler",
     "AsyncBackend",
+    "CancellableBackend",
     "Completer",
 ]

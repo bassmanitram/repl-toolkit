@@ -8,8 +8,8 @@ for compatibility with the REPL toolkit.
 from typing import TYPE_CHECKING, Dict, List, Optional, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
-    from .actions.action import ActionContext  # Avoid circular import
-    from .images import ImageData  # Avoid circular import
+    from .actions.action import ActionContext
+    from .images import ImageData
 
 
 @runtime_checkable
@@ -18,92 +18,67 @@ class AsyncBackend(Protocol):
     Protocol for async backends that process user input.
 
     Backends are responsible for handling user input and generating responses
-    in an asynchronous manner, supporting cancellation and error handling.
+    in an asynchronous manner, supporting error handling.
 
-    Optional Cancellation Support:
-        Backends can optionally implement a cancel(message: Optional[str] = None)
-        method to support cooperative cancellation of long-running operations.
-        This is particularly useful when the backend performs blocking operations
-        that cannot be immediately cancelled via asyncio.Task.cancel().
-
-        The cancel() method is NOT part of the protocol requirement (not checked
-        by isinstance). The REPL checks for it using hasattr() at runtime.
-
-        Implementation Guidelines for cancel():
-            1. Method signature: cancel(self, message: Optional[str] = None) -> None
-            2. MUST be non-blocking (return immediately)
-            3. Set an internal cancellation token/flag that handle_input() can check
-            4. handle_input() should check the flag at safe checkpoints
-            5. Reset the flag at the start of each new operation
-
-        Example Implementation:
-            class CancellableBackend:
-                def __init__(self):
-                    self._cancel_requested = False
-
-                def cancel(self, message: Optional[str] = None) -> None:
-                    '''Signal cancellation.'''
-                    self._cancel_requested = True
-                    if message:
-                        logger.info(f"Cancellation requested: {message}")
-
-                async def handle_input(self, user_input: str, **kwargs) -> bool:
-                    '''Process input with cancellation checkpoints.'''
-                    # Reset flag at start of operation
-                    self._cancel_requested = False
-
-                    try:
-                        for step in self._get_processing_steps(user_input):
-                            # Checkpoint: Check for cancellation
-                            if self._cancel_requested:
-                                print("Operation cancelled.")
-                                return False
-
-                            # Do work
-                            await self._process_step(step)
-
-                        return True
-
-                    except Exception as e:
-                        logger.error(f"Error: {e}")
-                        return False
-
-        Cancellation Messages:
-            The message parameter typically contains one of:
-            - "Operation cancelled by user" (Alt+C in interactive mode)
-            - "Operation cancelled by user (Ctrl+C)" (Ctrl+C interrupt)
-            - "Operation cancelled due to error" (Exception during processing)
-
-        Note:
-            - Backends without cancel() will still work correctly
-            - They will fall back to asyncio.Task.cancel() only
-            - There is a small race condition where the operation might
-              complete between the cancellation request and flag check.
-              Implementations should handle this gracefully (no-op if already done).
+    For cancellation support, implement `CancellableBackend` instead.
     """
 
     async def handle_input(
-        self, user_input: str, images: Optional[Dict[str, "ImageData"]] = None
+        self, user_input: str, images: Optional[Dict[str, "ImageData"]] = None, **kwargs
     ) -> bool:
         """
         Handle user input asynchronously.
 
         Args:
             user_input: The input string from the user
-            images: Optional dictionary mapping image IDs to ImageData.
-                   Image IDs appear in user_input as {{image:img_xxx}} placeholders.
+            images: Optional dictionary mapping image IDs to ImageData
+            **kwargs: Additional arguments (e.g., cancel_callback for tools)
 
         Returns:
             bool: True if processing was successful, False if there was an error
+        """
+        ...
 
-        Note:
-            This method should handle its own error reporting to the user.
-            The return value indicates success/failure for flow control.
 
-            Legacy backends can ignore the images parameter for backward compatibility.
+@runtime_checkable
+class CancellableBackend(AsyncBackend, Protocol):
+    """
+    Protocol for async backends that support cooperative cancellation.
 
-            For cancellable operations, implement cancel() method and check the
-            cancellation flag at safe checkpoints during processing.
+    Extends AsyncBackend with a cancel() method that allows the REPL to
+    signal cancellation to the backend. The backend should implement
+    cooperative cancellation by checking an internal flag at safe points.
+
+    Implementation Guidelines:
+        1. cancel() MUST be non-blocking (return immediately)
+        2. Set an internal cancellation token/flag
+        3. handle_input() should check the flag at safe checkpoints
+        4. Reset the flag at the start of each new operation
+        5. Kill any child processes if applicable
+
+    Example:
+        class MyCancellableBackend:
+            def __init__(self):
+                self._cancel_token = CancellationToken()
+
+            def cancel(self, message: Optional[str] = None) -> None:
+                self._cancel_token.cancel(message)
+
+            async def handle_input(self, user_input: str, **kwargs) -> bool:
+                self._cancel_token.reset()
+                # ... processing with cancellation checkpoints ...
+    """
+
+    def cancel(self, message: Optional[str] = None) -> None:
+        """
+        Signal cancellation to the backend.
+
+        This method MUST be non-blocking and return immediately. It should
+        set an internal flag that handle_input() checks at safe points.
+
+        Args:
+            message: Optional message describing the cancellation reason.
+                    Typically "Operation cancelled by user".
         """
         ...
 
@@ -136,11 +111,7 @@ class ActionHandler(Protocol):
 
         Args:
             command_string: Full command string (e.g., '/help arg1 arg2')
-            **kwargs: Additional context parameters (e.g., headless_mode, buffer)
-
-        Note:
-            This method parses the command and maps it to the appropriate
-            action execution with proper context.
+            **kwargs: Additional context parameters
         """
         ...
 
@@ -185,9 +156,5 @@ class Completer(Protocol):
 
         Yields:
             Completion: Individual completion suggestions
-
-        Note:
-            This follows the prompt_toolkit Completer interface for
-            compatibility with the underlying prompt_toolkit system.
         """
         ...

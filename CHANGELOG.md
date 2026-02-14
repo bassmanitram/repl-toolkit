@@ -5,6 +5,56 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2025-02-10
+
+### Added
+
+- **`CancellableBackend` Protocol**: Explicit protocol for backends supporting cooperative cancellation
+  - Extracted from optional `cancel()` method pattern to formal protocol inheritance
+  - Backends implement `CancellableBackend` instead of `AsyncBackend` for cancellation support
+  - Type-safe checking via `isinstance(backend, CancellableBackend)`
+  - Clear contract: `cancel(message: Optional[str] = None) -> None` method required
+  - Comprehensive documentation in protocol docstring
+
+- **`cancel_callback` Parameter**: Backends now receive `cancel_callback` kwarg in `handle_input()`
+  - Thread-safe callback function for tools to trigger cancellation
+  - Enables tools/subprocesses to signal cancellation back to REPL
+  - Used by tools that spawn long-running operations
+  - Fully backward compatible - ignored if not used
+
+### Changed
+
+- **Major Refactoring of `async_repl.py`**: Improved code organization and maintainability
+  - Extracted `_cancellation_context()` as async context manager
+  - Separated concerns: `_create_cancel_app()`, `_build_backend_kwargs()`, `_handle_cancellation()`
+  - Added clear section headers for code navigation
+  - Simplified method signatures and reduced nesting
+  - Removed excessive debug logging (200+ lines removed)
+  - Better type annotations and mypy compliance
+
+- **Method Renames for Clarity**:
+  - `_should_exit()` → `_is_exit_command()` (clearer intent)
+  - `THINKING` constant → `THINKING_MESSAGE` (more descriptive)
+
+- **Type Annotations Improved**:
+  - `action_registry` parameter now correctly typed as `Optional[ActionRegistry]` instead of `Optional[ActionHandler]`
+  - Fixed mypy errors with proper protocol usage
+  - Better type safety throughout
+
+### Documentation
+
+- Updated `CancellableBackend` protocol documentation with implementation guidelines
+- Clarified distinction between `AsyncBackend` (base) and `CancellableBackend` (with cancellation)
+- Added examples showing proper protocol inheritance
+- Updated docstrings to reflect new architecture
+
+### Internal
+
+- Removed 386 lines, added 252 lines (net -134 lines)
+- Better separation of concerns with dedicated helper methods
+- Improved testability with extracted context manager
+- Reduced code duplication in cancellation handling
+
 ## [2.1.0] - 2025-01-28
 
 ### Added

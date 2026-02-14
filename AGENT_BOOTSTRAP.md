@@ -9,11 +9,11 @@
 
 ## What You Need to Know
 
-**This is**: A REPL framework that provides terminal UI, keyboard shortcuts, command routing, and both interactive and headless (batch) modes. Applications implement the `AsyncBackend` protocol to handle user input, and the library handles all the terminal UI complexity (input editing, history, completion, etc.). Supports optional cooperative cancellation for blocking operations and automatic prompt maintenance in interactive mode.
+**This is**: A REPL framework that provides terminal UI, keyboard shortcuts, command routing, and both interactive and headless (batch) modes. Applications implement the `AsyncBackend` or `CancellableBackend` protocol to handle user input, and the library handles all the terminal UI complexity (input editing, history, completion, etc.). Supports explicit cooperative cancellation protocol and automatic prompt maintenance in interactive mode.
 
 **Architecture in one sentence**: Protocol-based framework where user's backend implements `handle_input()` and the library wraps it with either AsyncREPL (interactive UI) or HeadlessREPL (stdin processing).
 
-**The ONE constraint that must not be violated**: Backend must implement `AsyncBackend.handle_input()` protocol - this is the contract between library and application.
+**The ONE constraint that must not be violated**: Backend must implement `AsyncBackend.handle_input()` or `CancellableBackend` protocol - this is the contract between library and application.
 
 ---
 
@@ -24,6 +24,7 @@
 - **Late binding** - REPL can be initialized before backend exists (useful for resource initialization)
 - **Two modes**: Interactive (prompt-toolkit UI) and Headless (stdin line-by-line) share action system
 - **Protocol-based** - loose coupling via Python protocols, easy to test with mocks
+- **Cancellation** - Explicit `CancellableBackend` protocol for type-safe cancellation support
 
 ---
 
@@ -33,7 +34,7 @@
 repl_toolkit/
 ├── async_repl.py       # Interactive REPL with prompt-toolkit UI
 ├── headless_repl.py    # Stdin batch processing mode
-├── ptypes.py           # Protocol definitions: AsyncBackend, ActionHandler, Completer
+├── ptypes.py           # Protocol definitions: AsyncBackend, CancellableBackend, ActionHandler, Completer
 ├── actions/            # Action system: Action dataclass, ActionRegistry, ActionContext
 ├── completion/         # Tab completion: prefix, shell expansion
 ├── formatting.py       # Auto-formatting for JSON/YAML/etc
@@ -50,6 +51,7 @@ repl_toolkit/
 | Change input handling | `async_repl.py` → `_process_input()` | Where Enter/Alt+Enter logic lives |
 | Add completion type | `completion/` → create new module | Implement Completer protocol |
 | Fix headless mode issue | `headless_repl.py` → `run()` | Stdin processing logic |
+| Understand cancellation | `async_repl.py` → `_cancellation_context()` | Async context manager for cancel handling |
 
 **Entry points**:
 - Interactive: `AsyncREPL.run(backend)` - Starts prompt-toolkit session
@@ -62,10 +64,11 @@ repl_toolkit/
 
 These rules MUST be maintained:
 
-1. **Backend protocol compliance**: Backend must implement `async def handle_input(user_input: str, images: Optional[Dict] = None) -> bool`
+1. **Backend protocol compliance**: Backend must implement `async def handle_input(user_input: str, images: Optional[Dict] = None, **kwargs) -> bool`
    - **Why**: This is the contract - REPL calls this method for every input
    - **Breaks if violated**: Type errors at runtime, REPL can't process input
    - **Enforced by**: Python protocols (mypy checks), runtime will fail immediately
+   - **Note**: For cancellation support, implement `CancellableBackend` which adds `cancel()` method
 
 2. **Action names must be unique**: ActionRegistry enforces one action per name
    - **Why**: Name is used for lookup when executing, duplicates cause ambiguity
@@ -103,6 +106,12 @@ Things that surprise people:
    - **Watch out for**: If you want image data, you must look it up in the `images` dict parameter
    - **Correct approach**: Use `parse_image_references()` and `images` dict together
 
+5. **CancellableBackend vs AsyncBackend (v2.2.0+)**:
+   - **Why**: Type-safe cancellation support via explicit protocol inheritance
+   - **Pattern**: Implement `CancellableBackend` if you need cancellation, `AsyncBackend` otherwise
+   - **Gotcha**: REPL checks `isinstance(backend, CancellableBackend)` not `hasattr(backend, 'cancel')`
+   - **Correct approach**: Inherit protocol explicitly in type annotations
+
 ---
 
 ## Architecture Decisions
@@ -127,14 +136,19 @@ Things that surprise people:
 - **Alternative considered**: `handler(backend, args, trigger_method)` function signature
 - **Why context wins**: Can add new metadata (user_id, session_id, etc.) without breaking existing handlers
 
+**Why explicit CancellableBackend protocol (v2.2.0)?**
+- **Trade-off**: Two protocols vs optional method with `hasattr()` check
+- **Alternative considered**: Keep `hasattr(backend, 'cancel')` pattern from v2.1.0
+- **Why explicit wins**: Type safety (mypy catches missing method), clear contract, better documentation, proper inheritance chain
+
 ---
 
 ## Key Patterns & Abstractions
 
 **Pattern 1: Protocol-Based Interface**
-- **Used for**: Backend, ActionHandler, Completer - all major extension points
+- **Used for**: Backend, CancellableBackend, ActionHandler, Completer - all major extension points
 - **Structure**: Define protocol with required methods, users implement matching signature
-- **Examples in code**: `AsyncBackend` in `ptypes.py` - no inheritance required, just matching method
+- **Examples in code**: `AsyncBackend` and `CancellableBackend` in `ptypes.py` - no inheritance required, just matching method
 
 **Pattern 2: Registry Pattern**
 - **Used for**: Action registration and lookup
@@ -145,6 +159,11 @@ Things that surprise people:
 - **Used for**: Passing rich metadata to action handlers
 - **Structure**: `ActionContext` bundles registry, backend, args, trigger method
 - **Why**: Future-proof (can add fields without breaking handlers), self-documenting (ctx.backend vs positional arg)
+
+**Pattern 4: Async Context Manager for Cancellation (v2.2.0)**
+- **Used for**: Encapsulating cancellation setup, execution, and cleanup
+- **Structure**: `_cancellation_context()` yields cancel_future and trigger_cancel callback
+- **Why**: Separation of concerns, guaranteed cleanup, easier testing, reduced duplication
 
 **Anti-pattern to avoid: Blocking I/O in backend**
 - **Don't do this**: `def handle_input(self, text: str)` (sync function) with `time.sleep()` or blocking HTTP calls
@@ -169,10 +188,20 @@ User input → prompt-toolkit → AsyncREPL._process_input() → ActionRegistry.
                                                   Prints output          Returns bool (continue?)
 ```
 
+**Cancellation flow (v2.2.0)**:
+```
+Ctrl+C/Alt+C → cancel_future.set_result() → isinstance(backend, CancellableBackend)?
+                                              ↓ yes                    ↓ no
+                                         backend.cancel()         (skip)
+                                              ↓                        ↓
+                                         backend_task.cancel() ← ← ← ←
+```
+
 **Critical paths**:
 - Input processing must distinguish commands (starts with `/`) from text - this routing is core to UX
 - Actions must be able to access backend via `ActionContext` - breaks if context doesn't carry backend reference
 - Backend's return value controls REPL continuation - `False` means exit, `True` means continue
+- Cancellation context must cleanup properly in all cases (success, cancel, exception)
 
 ---
 
@@ -194,7 +223,7 @@ User input → prompt-toolkit → AsyncREPL._process_input() → ActionRegistry.
 
 ## Configuration Philosophy
 
-**What's configurable**: Actions (add/remove/modify), completion strategy, backend implementation, input processing behavior
+**What's configurable**: Actions (add/remove/modify), completion strategy, backend implementation, input processing behavior, cancellation behavior (via protocol implementation)
 
 **What's hardcoded**:
 - Input key bindings (Enter, Alt+Enter, F-keys) - defined in `async_repl.py`
@@ -212,6 +241,7 @@ User input → prompt-toolkit → AsyncREPL._process_input() → ActionRegistry.
 - **Input processing**: Command detection, text passthrough, multiline handling
 - **Completion**: Prefix matching, shell expansion, mid-word triggering
 - **Image handling**: Clipboard extraction, placeholder generation, format detection
+- **Cancellation**: Both cancellable and non-cancellable backends, all trigger paths
 
 **What we don't test**:
 - **prompt-toolkit internals**: Trust the library works
@@ -246,6 +276,11 @@ User input → prompt-toolkit → AsyncREPL._process_input() → ActionRegistry.
 - **Diagnostic**: Run tests with `pytest -v` to see which test fails when
 - **Solution**: Use fresh ActionRegistry per test, reset backend state in fixtures
 
+**Symptom**: Cancellation not working (v2.2.0+)
+- **Why it happens**: Backend doesn't implement `CancellableBackend` protocol
+- **Diagnostic**: Check `isinstance(backend, CancellableBackend)` - should be True
+- **Solution**: Implement both `handle_input()` and `cancel()`, ensure proper type annotations
+
 ---
 
 ## Modification Patterns
@@ -268,18 +303,28 @@ User input → prompt-toolkit → AsyncREPL._process_input() → ActionRegistry.
 3. Add tests to verify new behavior doesn't break existing use cases
 4. Document as breaking change in CHANGELOG.md (likely requires major version bump)
 
+**To implement cancellable backend**:
+1. Import `CancellableBackend` from `repl_toolkit`
+2. Implement both `handle_input()` and `cancel()` methods
+3. Set internal cancellation flag in `cancel()`, check in `handle_input()` loops
+4. Reset flag at start of each `handle_input()` call
+5. Type annotation: `class MyBackend(CancellableBackend):` or use structural typing
+
 ---
 
-## New in v2.1.0
+## New in v2.2.0
 
-**Cooperative Cancellation**: Backends can optionally implement `cancel(message: Optional[str] = None)` method for graceful cancellation of blocking operations. REPL calls this before `task.cancel()` on Alt+C, Ctrl+C, or exceptions. Fully backward compatible - checked via `hasattr()`.
+**Explicit CancellableBackend Protocol**: Cancellation support moved from optional `cancel()` method to formal protocol inheritance. Backends implement `CancellableBackend` instead of `AsyncBackend` for type-safe cancellation support. Uses `isinstance()` check instead of `hasattr()`.
 
-**Interactive Output Handling**: Interactive mode actions automatically use `print_formatted_text()` instead of `print()` to maintain clean prompt display. Actions using `context.printer` or standard `print()` work correctly. Headless mode continues to use standard `print()` for logs/pipes.
+**cancel_callback Parameter**: Backends receive `cancel_callback` kwarg in `handle_input()`. Thread-safe function for tools/subprocesses to signal cancellation back to REPL.
+
+**Major Refactoring**: `async_repl.py` reorganized with async context manager for cancellation (`_cancellation_context()`), separated helper methods, removed 200+ lines of debug logging. Better type annotations, improved mypy compliance.
 
 **Implementation notes**:
-- Cancellation checked at three points: cancel_future (Alt+C), KeyboardInterrupt (Ctrl+C), general Exception
-- Output handling uses two-layer defense: explicit `print_formatted_text` printer + `patch_stdout` wrapper
-- Both features are optional and backward compatible
+- Cancellation uses `isinstance(backend, CancellableBackend)` not `hasattr(backend, 'cancel')`
+- Context manager guarantees cleanup even on exception
+- Method renames: `_should_exit()` → `_is_exit_command()`
+- Type fixes: `action_registry: Optional[ActionRegistry]` (was ActionHandler)
 
 ---
 
@@ -290,6 +335,7 @@ Update this bootstrap when:
 - [x] Action system fundamentally changes (e.g., remove unified command/shortcut pattern)
 - [x] New major integration added (e.g., async context managers for backends)
 - [x] Testing strategy shifts (e.g., add property-based testing)
+- [x] Protocol definitions change (e.g., new CancellableBackend protocol in v2.2.0)
 
 Don't update for:
 - ❌ New built-in actions added (extend existing pattern)
@@ -300,5 +346,5 @@ Don't update for:
 
 ---
 
-**Last Updated**: 2025-01-28
-**Last Architectural Change**: v2.1.0 - Added optional cooperative cancellation, interactive output handling
+**Last Updated**: 2025-02-10
+**Last Architectural Change**: v2.2.0 - Explicit CancellableBackend protocol, async context manager for cancellation, major refactoring

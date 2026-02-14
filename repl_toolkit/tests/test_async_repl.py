@@ -74,15 +74,15 @@ class TestAsyncREPL:
         # Test single keys
         assert repl._parse_key_combination("enter") == ("enter",)
 
-    def test_should_exit(self, mock_terminal_for_repl):
+    def test_is_exit_command(self, mock_terminal_for_repl):
         """Test exit condition detection."""
         repl = AsyncREPL()
 
-        assert repl._should_exit("/exit")
-        assert repl._should_exit("/quit")
-        assert repl._should_exit("  /EXIT  ")
-        assert not repl._should_exit("/help")
-        assert not repl._should_exit("regular input")
+        assert repl._is_exit_command("/exit")
+        assert repl._is_exit_command("/quit")
+        assert repl._is_exit_command("  /EXIT  ")
+        assert not repl._is_exit_command("/help")
+        assert not repl._is_exit_command("regular input")
 
     def test_backend_injection_during_run(self, mock_terminal_for_repl):
         """Test backend injection into action registry during run."""
