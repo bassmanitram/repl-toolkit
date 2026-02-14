@@ -79,7 +79,6 @@ class ActionRegistry(ActionHandler):
     @property
     def backend(self):
         """The backend property getter."""
-        logger.debug("ActionRegistry.backend getter")
         return self._backend
 
     @backend.setter
@@ -320,7 +319,7 @@ class ActionRegistry(ActionHandler):
                 f"Failed to execute action '{action_name}': {e}", action_name
             )  # pragma: no cover
 
-    def handle_command(self, command_string: str, **kwargs) -> None:
+    def handle_command(self, command_string: str, **kwargs: Any) -> None:
         """
         Handle a command string by mapping to appropriate action.
 
@@ -373,7 +372,7 @@ class ActionRegistry(ActionHandler):
             logger.exception(f"Unexpected error handling command '{command_string}'")
             logger.debug("ActionRegistry.handle_command() exit - unexpected error")
 
-    def handle_shortcut(self, key_combo: str, event: Any, **kwargs) -> None:
+    def handle_shortcut(self, key_combo: str, event: Any, **kwargs: Any) -> None:
         """
         Handle a keyboard shortcut by mapping to appropriate action.
 
@@ -415,22 +414,18 @@ class ActionRegistry(ActionHandler):
     # ActionHandler protocol implementation
     def validate_action(self, action_name: str) -> bool:
         """Validate if an action is supported."""
-        logger.debug("ActionRegistry.validate_action() entry/exit")
         return action_name in self.actions
 
     def list_actions(self) -> List[str]:
         """Return a list of all available action names."""
-        logger.debug("ActionRegistry.list_actions() entry/exit")
         return list(self.actions.keys())
 
     def list_commands(self) -> List[str]:
         """Return a list of all available commands."""
-        logger.debug("ActionRegistry.list_commands() entry/exit")
         return list(self.command_map.keys())
 
     def list_shortcuts(self) -> List[str]:
         """Return a list of all available keyboard shortcuts."""
-        logger.debug("ActionRegistry.list_shortcuts() entry/exit")
         return list(self.key_map.keys())
 
     def is_registered_command(self, text: str) -> bool:
@@ -509,7 +504,7 @@ class ActionRegistry(ActionHandler):
 
             if action:
                 self._show_action_help(action, context)
-            else:  # pragma: no cover
+            else:
                 context.printer(f"No help available for: {context.args[0]}")
         else:
             # Show general help
@@ -520,22 +515,21 @@ class ActionRegistry(ActionHandler):
     def _show_action_help(self, action: Action, context: ActionContext) -> None:
         """Show detailed help for a specific action."""
         logger.debug("ActionRegistry._show_action_help() entry")
-        # pragma: no cover
-        context.printer(f"\n{action.description}")  # pragma: no cover
+        context.printer(f"\n{action.description}")
         context.printer(f"Category: {action.category}")
 
-        if action.command:  # pragma: no cover
+        if action.command:
             context.printer(f"Command: {action.command_usage or action.command}")
 
         if action.keys:
             keys_str = ", ".join(action.get_keys_list())
             desc = (
                 f" - {action.keys_description}" if action.keys_description else ""
-            )  # pragma: no cover
+            )
             context.printer(f"Shortcut: {keys_str}{desc}")
 
-        if not action.enabled:  # pragma: no cover
-            context.printer("Status: Disabled")  # pragma: no cover
+        if not action.enabled:
+            context.printer("Status: Disabled")
         context.printer("")
 
         logger.debug("ActionRegistry._show_action_help() exit")
@@ -543,13 +537,12 @@ class ActionRegistry(ActionHandler):
     def _show_general_help(self, context: ActionContext) -> None:
         """Show general help with all actions organized by category."""
         logger.debug("ActionRegistry._show_general_help() entry")
-        # pragma: no cover
-        context.printer("\nAvailable Actions:")  # pragma: no cover
+        context.printer("\nAvailable Actions:")
         context.printer("=" * 50)
 
         categories = self.get_actions_by_category()
 
-        for category, actions in sorted(categories.items()):  # pragma: no cover
+        for category, actions in sorted(categories.items()):
             context.printer(f"\n{category}:")
             for action in sorted(actions, key=lambda a: a.name):
                 # Format display line
@@ -567,13 +560,11 @@ class ActionRegistry(ActionHandler):
                     parts.append(" " * 15)
 
                 parts.append(action.description)
-                # pragma: no cover
                 context.printer("  " + "".join(parts))
-        # pragma: no cover
         context.printer(
             "\nUse '/help <command>' for detailed information about a specific action."
-        )  # pragma: no cover
-        context.printer("Use '/shortcuts' to see only keyboard shortcuts.")  # pragma: no cover
+        )
+        context.printer("Use '/shortcuts' to see only keyboard shortcuts.")
         context.printer("")
 
         logger.debug("ActionRegistry._show_general_help() exit")
@@ -581,8 +572,7 @@ class ActionRegistry(ActionHandler):
     def _list_shortcuts(self, context: ActionContext) -> None:
         """List all keyboard shortcuts."""
         logger.debug("ActionRegistry._list_shortcuts() entry")
-        # pragma: no cover
-        context.printer("\nKeyboard Shortcuts:")  # pragma: no cover
+        context.printer("\nKeyboard Shortcuts:")
         context.printer("=" * 50)
 
         categories = self.get_actions_by_category()
@@ -591,13 +581,11 @@ class ActionRegistry(ActionHandler):
             shortcuts_in_category = [a for a in actions if a.keys]
             if not shortcuts_in_category:
                 continue
-            # pragma: no cover
             context.printer(f"\n{category}:")
             for action in sorted(shortcuts_in_category, key=lambda a: a.name):
                 keys_str = ", ".join(action.get_keys_list())
-                desc = action.keys_description or action.description  # pragma: no cover
+                desc = action.keys_description or action.description
                 context.printer(f"  {keys_str:<15} {desc}")
-        # pragma: no cover
         context.printer("")
 
         logger.debug("ActionRegistry._list_shortcuts() exit")

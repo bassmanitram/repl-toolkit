@@ -1,4 +1,50 @@
-"""Image handling support for repl_toolkit."""
+"""
+Image handling support for repl_toolkit.
+
+This module provides functionality for working with images in the REPL:
+
+1. **Clipboard Integration**: Extract images from system clipboard
+2. **Image References**: Parse {{image:id}} placeholders in text
+3. **Message Reconstruction**: Replace placeholders with actual image data
+4. **Paste Action**: Built-in /paste command for interactive mode
+
+## Workflow
+
+Interactive Mode:
+1. User copies image to clipboard
+2. User triggers /paste command or F6 shortcut
+3. Image extracted from clipboard → stored in REPL buffer
+4. Placeholder {{image:img_001}} inserted into input
+5. User sends message with Alt+Enter
+6. Backend receives text + images dict parameter
+7. Backend can access image data via parse_image_references()
+
+Programmatic:
+```python
+# Add image to REPL buffer
+image_id = repl.add_image(img_bytes, "image/png")
+
+# Parse message with placeholders
+parsed = parse_image_references("Check {{image:img_001}}")
+# parsed.image_ids = ["img_001"]
+
+# Reconstruct with actual data
+images = {"img_001": ImageData(...)}
+text_with_data = reconstruct_message(parsed.text, images)
+```
+
+## Key Functions
+
+- `create_paste_action()`: Register /paste command (auto-registered in AsyncREPL)
+- `parse_image_references()`: Extract image IDs from text
+- `reconstruct_message()`: Replace placeholders with data
+- `extract_clipboard_image()`: Get image from system clipboard
+
+## Data Classes
+
+- `ImageData`: Raw bytes + media type + timestamp
+- `ParsedContent`: Text + extracted image IDs + placeholders
+"""
 
 import re
 from dataclasses import dataclass

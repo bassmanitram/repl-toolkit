@@ -185,7 +185,6 @@ async def main():
             action_registry=action_registry,
             prompt_string="Example: ",
             initial_message=None,
-            enable_system_prompt=True,
         )
     except KeyboardInterrupt:
         print("\nGoodbye!")

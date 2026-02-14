@@ -1,9 +1,9 @@
 """
 Tests for backend cancellation support.
 
-Tests verify that backends with optional cancel() method receive
+Tests verify that backends implementing CancellableBackend protocol receive
 cancellation signals appropriately while maintaining backward
-compatibility with backends that don't implement cancel().
+compatibility with backends that only implement AsyncBackend.
 """
 
 import asyncio

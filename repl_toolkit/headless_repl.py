@@ -6,7 +6,7 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 from .actions.registry import ActionRegistry
-from .ptypes import ActionHandler, AsyncBackend
+from .ptypes import ActionHandler, AsyncBackend, CancellableBackend
 
 
 class HeadlessREPL:
@@ -77,7 +77,7 @@ class HeadlessREPL:
             logger.info("Headless REPL interrupted by user (Ctrl+C)")
 
             # Signal cancellation to backend (if supported)
-            if hasattr(backend, "cancel"):
+            if isinstance(backend, CancellableBackend):
                 backend.cancel("Operation cancelled by user (Ctrl+C)")
             self.interrupted = True
             logger.debug("HeadlessREPL.run() exit - interrupted")
