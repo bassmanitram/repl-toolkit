@@ -32,6 +32,9 @@ logger = logging.getLogger(__name__)
 
 THINKING_MESSAGE = HTML("<i><grey>Thinking... (Press Ctrl+C or Alt+C to cancel)</grey></i>")
 
+# How long to wait for cooperative cancellation before forcing task cancellation
+COOPERATIVE_CANCEL_TIMEOUT = 5.0
+
 
 class AsyncREPL:
     """
@@ -361,22 +364,53 @@ class AsyncREPL:
         return kwargs
 
     async def _handle_cancellation(self, backend_task: asyncio.Task, backend: AsyncBackend) -> None:
-        """Handle cancellation of the backend task."""
+        """Handle cancellation of the backend task.
+        
+        Uses a two-phase cancellation strategy:
+        1. Signal cooperative cancellation to the backend (if supported)
+        2. Wait for the task to complete gracefully within a timeout
+        3. Only force-cancel the task if cooperative cancellation doesn't work
+        
+        This approach allows backends with nested async tasks (like strands-agents
+        with ConcurrentToolExecutor) to properly clean up their subtasks.
+        """
         print("\nOperation cancelled by user.")
 
-        # Signal cancellation to backend if it supports it
+        # Phase 1: Signal cooperative cancellation to backend
         if isinstance(backend, CancellableBackend):
             try:
                 backend.cancel("Operation cancelled by user")
             except Exception as e:
                 logger.error(f"Error signaling cancellation to backend: {e}")
 
-        # Cancel the asyncio task
+        # Phase 2: Wait for cooperative cancellation to complete
+        if backend_task and not backend_task.done():
+            try:
+                # Give cooperative cancellation time to work
+                await asyncio.wait_for(
+                    asyncio.shield(backend_task),
+                    timeout=COOPERATIVE_CANCEL_TIMEOUT
+                )
+                logger.debug("Backend task completed via cooperative cancellation")
+                return
+            except asyncio.TimeoutError:
+                logger.debug("Cooperative cancellation timed out, forcing task cancellation")
+            except asyncio.CancelledError:
+                # Task was cancelled by something else
+                pass
+            except Exception as e:
+                logger.debug(f"Backend task raised exception during cancellation: {e}")
+                return
+
+        # Phase 3: Force cancel if cooperative cancellation didn't work
         if backend_task and not backend_task.done():
             backend_task.cancel()
             try:
                 await backend_task
             except asyncio.CancelledError:
+                pass
+            except Exception:
+                # Ignore exceptions during forced cancellation
                 pass
 
     async def _cleanup_cancel_context(
