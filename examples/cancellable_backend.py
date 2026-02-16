@@ -9,7 +9,6 @@ for backends that perform long-running or blocking operations.
 import asyncio
 import logging
 import sys
-import time
 from pathlib import Path
 
 # Configure logging

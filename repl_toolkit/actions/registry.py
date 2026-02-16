@@ -523,9 +523,7 @@ class ActionRegistry(ActionHandler):
 
         if action.keys:
             keys_str = ", ".join(action.get_keys_list())
-            desc = (
-                f" - {action.keys_description}" if action.keys_description else ""
-            )
+            desc = f" - {action.keys_description}" if action.keys_description else ""
             context.printer(f"Shortcut: {keys_str}{desc}")
 
         if not action.enabled:
@@ -561,9 +559,7 @@ class ActionRegistry(ActionHandler):
 
                 parts.append(action.description)
                 context.printer("  " + "".join(parts))
-        context.printer(
-            "\nUse '/help <command>' for detailed information about a specific action."
-        )
+        context.printer("\nUse '/help <command>' for detailed information about a specific action.")
         context.printer("Use '/shortcuts' to see only keyboard shortcuts.")
         context.printer("")
 
