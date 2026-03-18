@@ -37,7 +37,7 @@ import logging
 # Add NullHandler to prevent "No handler found" warnings
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
-__version__ = "2.2.0"
+__version__ = "2.3.0"
 
 from .actions import Action, ActionContext, ActionRegistry
 from .async_repl import AsyncREPL, run_async_repl

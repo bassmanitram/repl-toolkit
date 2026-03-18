@@ -295,9 +295,11 @@ class AsyncREPL:
 
         def trigger_cancel():
             """Thread-safe callback to trigger cancellation."""
+
             def _set_cancel():
                 if not cancel_future.done():
                     cancel_future.set_result(None)
+
             loop.call_soon_threadsafe(_set_cancel)
 
         try:

@@ -592,8 +592,15 @@ class CancellableBackend:
     def __init__(self):
         self._cancel_requested = False
 
-    def cancel(self, message: Optional[str] = None) -> None:
-        """Optional method to support cooperative cancellation."""
+    def cancel(self, message: Optional[str] = None) -> Optional[bool]:
+        """
+        Optional method to support cooperative cancellation.
+        
+        Returns:
+            Optional[bool]: 
+                - True or None (default): REPL force-cancels the asyncio task
+                - False: REPL lets handle_input() complete gracefully
+        """
         self._cancel_requested = True
         if message:
             print(f"Cancellation: {message}")
@@ -616,6 +623,49 @@ class CancellableBackend:
         return True
 ```
 
+### Cancellation Behavior Control (v2.3.0)
+
+The `cancel()` method can return a boolean to control how the REPL handles cancellation:
+
+```python
+class ForceCancel Backend:
+    """Traditional behavior - REPL cancels the asyncio task."""
+    
+    def cancel(self, message: Optional[str] = None) -> bool:
+        self._cancelled = True
+        return True  # or None - REPL force-cancels task
+```
+
+```python
+class GracefulBackend:
+    """New behavior - let handle_input() complete gracefully."""
+    
+    def cancel(self, message: Optional[str] = None) -> bool:
+        self._cancelled = True
+        return False  # REPL waits for handle_input() to finish
+        
+    async def handle_input(self, user_input: str, **kwargs) -> bool:
+        self._cancelled = False
+        
+        # Your processing with checkpoints
+        for step in steps:
+            if self._cancelled:
+                await self.cleanup()  # Cleanup hooks fire!
+                return False
+            await process(step)
+        return True
+```
+
+**When to return False:**
+- Backend uses cleanup hooks that need to fire
+- Using agent frameworks with cleanup/finalization logic
+- Need to save state or close connections gracefully
+
+**When to return True/None:**
+- Quick cancellation is preferred
+- No cleanup needed
+- Traditional async task cancellation is sufficient
+
 ### When cancel() is Called
 
 The REPL automatically calls `backend.cancel()` (if implemented) when:
@@ -637,11 +687,12 @@ class SubprocessBackend:
         self._cancel_requested = False
         self._current_process = None
 
-    def cancel(self, message: Optional[str] = None) -> None:
+    def cancel(self, message: Optional[str] = None) -> bool:
         """Cancel current subprocess."""
         self._cancel_requested = True
         if self._current_process:
             self._current_process.terminate()  # Stop the subprocess
+        return True  # Force cancel the asyncio task
 
     async def handle_input(self, user_input: str, **kwargs) -> bool:
         """Run command with cancellation support."""

@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-03-18
+
+### Added
+
+- **Optional Future Cancellation Control**: `CancellableBackend.cancel()` now returns `Optional[bool]` to control asyncio task cancellation behavior
+  - Return `True` or `None` (default): REPL force-cancels the asyncio task (backward compatible)
+  - Return `False`: REPL lets `handle_input()` complete gracefully without cancelling the future
+  - Enables backends to handle cancellation cooperatively with cleanup hooks
+  - Particularly useful for agent frameworks where cleanup hooks need to fire on cancellation
+  - Fully backward compatible - existing backends returning `None` work unchanged
+  - Protocol updated with comprehensive documentation and examples
+
+### Changed
+
+- **Cancellation Flow**: REPL now checks `cancel()` return value before deciding whether to cancel the asyncio task
+  - Only explicit `False` triggers graceful completion path
+  - `None` and `True` maintain existing force-cancellation behavior
+  - Better error handling around `cancel()` signal
+
+### Documentation
+
+- Enhanced `CancellableBackend` protocol docstring with:
+  - Clear explanation of return value semantics
+  - Examples for force cancellation (True/None) vs graceful completion (False)
+  - Use cases for each pattern
+  - Implementation guidelines
+- Updated protocol documentation to explain when cleanup hooks can fire
+
+### Internal
+
+- Improved cancellation handling logic in `async_repl.py`
+- Better separation between cancellation signaling and task cancellation
+
+
 ## [2.2.0] - 2025-02-10
 
 ### Added

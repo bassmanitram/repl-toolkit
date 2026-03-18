@@ -312,6 +312,20 @@ Ctrl+C/Alt+C → cancel_future.set_result() → isinstance(backend, CancellableB
 
 ---
 
+## New in v2.3.0
+
+**Optional Future Cancellation Control**: `CancellableBackend.cancel()` now returns `Optional[bool]` to control whether REPL force-cancels the asyncio task or lets `handle_input()` complete gracefully.
+
+**Return value semantics**:
+- `True` or `None` (default): REPL force-cancels the asyncio task (backward compatible)
+- `False`: REPL waits for `handle_input()` to complete naturally (enables cleanup hooks)
+
+**Use case**: Backends using agent frameworks with cleanup hooks that need to fire on cancellation. Returning `False` allows cleanup logic to execute before the operation completes.
+
+**Implementation**: REPL checks return value in `_handle_cancellation()` and conditionally cancels or awaits the task. Fully backward compatible - existing backends returning `None` maintain force-cancel behavior.
+
+---
+
 ## New in v2.2.0
 
 **Explicit CancellableBackend Protocol**: Cancellation support moved from optional `cancel()` method to formal protocol inheritance. Backends implement `CancellableBackend` instead of `AsyncBackend` for type-safe cancellation support. Uses `isinstance()` check instead of `hasattr()`.
@@ -346,5 +360,5 @@ Don't update for:
 
 ---
 
-**Last Updated**: 2025-02-10
-**Last Architectural Change**: v2.2.0 - Explicit CancellableBackend protocol, async context manager for cancellation, major refactoring
+**Last Updated**: 2026-03-18
+**Last Architectural Change**: v2.3.0 - Optional future cancellation control via cancel() return value
