@@ -595,9 +595,9 @@ class CancellableBackend:
     def cancel(self, message: Optional[str] = None) -> Optional[bool]:
         """
         Optional method to support cooperative cancellation.
-        
+
         Returns:
-            Optional[bool]: 
+            Optional[bool]:
                 - True or None (default): REPL force-cancels the asyncio task
                 - False: REPL lets handle_input() complete gracefully
         """
@@ -630,7 +630,7 @@ The `cancel()` method can return a boolean to control how the REPL handles cance
 ```python
 class ForceCancel Backend:
     """Traditional behavior - REPL cancels the asyncio task."""
-    
+
     def cancel(self, message: Optional[str] = None) -> bool:
         self._cancelled = True
         return True  # or None - REPL force-cancels task
@@ -639,14 +639,14 @@ class ForceCancel Backend:
 ```python
 class GracefulBackend:
     """New behavior - let handle_input() complete gracefully."""
-    
+
     def cancel(self, message: Optional[str] = None) -> bool:
         self._cancelled = True
         return False  # REPL waits for handle_input() to finish
-        
+
     async def handle_input(self, user_input: str, **kwargs) -> bool:
         self._cancelled = False
-        
+
         # Your processing with checkpoints
         for step in steps:
             if self._cancelled:
