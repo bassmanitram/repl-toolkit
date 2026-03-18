@@ -352,20 +352,39 @@ class AsyncREPL:
         """
         Handle cancellation of the backend task.
 
-        Signals cancellation to the backend and waits for the task to complete
-        naturally. We don't force-cancel because that would prevent the backend's
-        cleanup hooks from running.
+        Calls backend.cancel() if supported and respects its return value:
+        - True or None: Force-cancel the asyncio task (backward compatible default)
+        - False: Wait for task to complete gracefully (allows cleanup hooks to fire)
         """
         print("\nOperation cancelled by user.")
 
+        # Default: force cancel (backward compatible with old backends)
+        should_force_cancel = True
+
+        # Signal cancellation to backend if it supports the protocol
         if isinstance(backend, CancellableBackend):
             try:
-                backend.cancel("Operation cancelled by user")
+                result = backend.cancel("Operation cancelled by user")
+                # Only False means "let me complete gracefully"
+                # True or None (legacy) means "force cancel"
+                if result is False:
+                    should_force_cancel = False
             except Exception as e:
                 logger.error(f"Error signaling cancellation: {e}")
 
-        # Wait for natural completion - don't force cancel
-        if backend_task and not backend_task.done():
+        if backend_task.done():
+            return
+
+        if should_force_cancel:
+            # Force cancel - backward compatible behavior
+            backend_task.cancel()
+            try:
+                await backend_task
+            except asyncio.CancelledError:
+                pass
+        else:
+            # Graceful completion - wait for task to finish naturally
+            # This allows cleanup hooks to fire in the backend
             try:
                 await backend_task
             except asyncio.CancelledError:

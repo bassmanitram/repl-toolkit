@@ -46,30 +46,41 @@ class CancellableBackend(AsyncBackend, Protocol):
     Protocol for async backends that support cooperative cancellation.
 
     Extends AsyncBackend with a cancel() method that allows the REPL to
-    signal cancellation to the backend. The backend should implement
-    cooperative cancellation by checking an internal flag at safe points.
+    signal cancellation to the backend. The backend can control whether
+    the REPL should force-cancel the asyncio task or let it complete gracefully.
 
     Implementation Guidelines:
         1. cancel() MUST be non-blocking (return immediately)
         2. Set an internal cancellation token/flag
-        3. handle_input() should check the flag at safe checkpoints
-        4. Reset the flag at the start of each new operation
-        5. Kill any child processes if applicable
+        3. Return value controls REPL behavior:
+           - True or None: Force cancel the asyncio task (default, backward compatible)
+           - False: Let handle_input() complete gracefully
+        4. handle_input() should check the cancellation flag at safe checkpoints
+        5. Reset the flag at the start of each new operation
 
-    Example:
-        class MyCancellableBackend:
-            def __init__(self):
-                self._cancel_token = CancellationToken()
+    Backward Compatibility:
+        - Backends without cancel() → task is force-cancelled
+        - Backends with cancel() returning None → task is force-cancelled
+        - This maintains behavior expected by existing implementations
 
+    Example (force cancellation - default/legacy behavior):
+        class LegacyBackend:
             def cancel(self, message: Optional[str] = None) -> None:
-                self._cancel_token.cancel(message)
+                self._cancelled = True
+                # Returns None → REPL force-cancels the task
+
+    Example (graceful completion - new behavior):
+        class GracefulBackend:
+            def cancel(self, message: Optional[str] = None) -> bool:
+                self._token.cancel(message)
+                return False  # Let handle_input() complete, hooks will fire
 
             async def handle_input(self, user_input: str, **kwargs) -> bool:
-                self._cancel_token.reset()
-                # ... processing with cancellation checkpoints ...
+                # Process with agent - hooks handle cleanup on cancellation
+                return await self.agent.process(user_input)
     """
 
-    def cancel(self, message: Optional[str] = None) -> None:
+    def cancel(self, message: Optional[str] = None) -> Optional[bool]:
         """
         Signal cancellation to the backend.
 
@@ -79,6 +90,13 @@ class CancellableBackend(AsyncBackend, Protocol):
         Args:
             message: Optional message describing the cancellation reason.
                     Typically "Operation cancelled by user".
+
+        Returns:
+            Optional[bool]:
+                True or None: REPL should force-cancel the asyncio task
+                              (handle_input receives CancelledError)
+                False: REPL should let handle_input() complete gracefully
+                       (allows cleanup hooks to fire)
         """
         ...
 
