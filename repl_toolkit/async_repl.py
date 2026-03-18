@@ -1,9 +1,11 @@
 """
 Async REPL interface with action support for repl_toolkit.
 
-Provides an interactive chat interface with full UI features including
-history, action handling (commands + keyboard shortcuts), and
-robust cancellation of long-running tasks.
+Provides an interactive chat interface with:
+- Command history and multi-line editing
+- Action handling (commands and keyboard shortcuts)
+- Image paste support
+- Cancellation of long-running operations via Ctrl+C or Alt+C
 """
 
 import asyncio
@@ -35,14 +37,10 @@ THINKING_MESSAGE = HTML("<i><grey>Thinking... (Press Ctrl+C or Alt+C to cancel)<
 
 class AsyncREPL:
     """
-    Manages an interactive async REPL session with action support.
+    Async REPL with action support and cancellation handling.
 
-    Provides user input handling, action processing (commands and shortcuts),
-    and robust cancellation of long-running tasks.
-
-    The AsyncREPL supports late backend binding, allowing initialization without
-    a backend for scenarios where the backend is only available within a resource
-    context block.
+    Provides user input handling, action processing, and robust cancellation
+    of long-running backend operations.
     """
 
     def __init__(
@@ -68,12 +66,10 @@ class AsyncREPL:
         self._image_buffer: Dict[str, ImageData] = {}
         self._image_counter = 0
 
-        # Create ActionRegistry with prompt_toolkit printer
         if action_registry is None:
             action_registry = ActionRegistry(printer=lambda msg: print_formatted_text(msg))
         self.action_registry = action_registry
 
-        # Register image paste action if enabled
         if enable_image_paste:
             self._register_image_paste_action()
 
@@ -106,7 +102,6 @@ class AsyncREPL:
         self._image_buffer[image_id] = ImageData(
             data=img_bytes, media_type=media_type, timestamp=time.time()
         )
-        logger.debug(f"Added image {image_id} ({media_type}, {len(img_bytes)} bytes)")
         return image_id
 
     def clear_images(self) -> None:
@@ -134,7 +129,6 @@ class AsyncREPL:
 
         @bindings.add("enter")
         def handle_enter(event):
-            """Execute command or add new line."""
             buffer_text = event.app.current_buffer.text
             if self.action_registry.is_registered_command(buffer_text):
                 event.app.current_buffer.validate_and_handle()
@@ -143,13 +137,11 @@ class AsyncREPL:
 
         @bindings.add(Keys.Escape, "enter")
         def handle_alt_enter(event):
-            """Send message with Alt+Enter."""
             event.app.current_buffer.validate_and_handle()
 
         @bindings.add(Keys.F7)
         @bindings.add(Keys.Escape, Keys.Escape)
         def handle_clear(event):
-            """Clear buffer with F7 or Escape Escape."""
             event.app.current_buffer.reset()
 
         self._register_action_shortcuts(bindings)
@@ -190,11 +182,9 @@ class AsyncREPL:
         """Parse key combination string into prompt_toolkit format."""
         key_combo = key_combo.lower().strip()
 
-        # Function keys (F1, F2, etc.)
         if key_combo.startswith("f") and key_combo[1:].isdigit():
             return (key_combo,)
 
-        # Modifier combinations
         if "-" in key_combo:
             parts = key_combo.split("-")
             if len(parts) == 3:
@@ -241,7 +231,7 @@ class AsyncREPL:
                     continue
                 if user_input.strip().startswith("/"):
                     self.action_registry.handle_command(user_input.strip())
-                    await asyncio.sleep(0)  # Yield for async cleanup
+                    await asyncio.sleep(0)
                     continue
 
                 await self._process_input(user_input, backend)
@@ -264,8 +254,8 @@ class AsyncREPL:
         """
         Process user input with cancellation support.
 
-        Runs the backend processing task concurrently with a cancellation
-        listener, allowing users to cancel long-running operations.
+        Runs the backend task concurrently with a cancellation listener,
+        allowing users to cancel via Ctrl+C or Alt+C.
         """
         async with self._cancellation_context() as ctx:
             kwargs = self._build_backend_kwargs(ctx["trigger_cancel"])
@@ -295,7 +285,7 @@ class AsyncREPL:
         """
         Context manager for cancellation support.
 
-        Sets up the cancel future, cancel app, and cleanup logic.
+        Sets up the cancel future and cancellation key listener.
         Yields a dict with cancel_future and trigger_cancel callback.
         """
         loop = asyncio.get_event_loop()
@@ -304,12 +294,10 @@ class AsyncREPL:
         listener_task: Optional[asyncio.Task] = None
 
         def trigger_cancel():
-            """Thread-safe callback for tools to trigger cancellation."""
-
+            """Thread-safe callback to trigger cancellation."""
             def _set_cancel():
                 if not cancel_future.done():
                     cancel_future.set_result(None)
-
             loop.call_soon_threadsafe(_set_cancel)
 
         try:
@@ -322,7 +310,6 @@ class AsyncREPL:
             }
 
         except KeyboardInterrupt:
-            logger.debug("KeyboardInterrupt during input processing")
             if not cancel_future.done():
                 cancel_future.set_result(None)
 
@@ -335,7 +322,7 @@ class AsyncREPL:
             self._reset_ui()
 
     def _create_cancel_app(self, cancel_future: asyncio.Future) -> Application:
-        """Create the cancellation key bindings application."""
+        """Create application that listens for Ctrl+C and Alt+C."""
         kb = KeyBindings()
 
         @kb.add("escape", "c")
@@ -349,7 +336,8 @@ class AsyncREPL:
         def handle_ctrl_c(event):
             if not cancel_future.done():
                 cancel_future.set_result(None)
-            event.app.exit(exception=KeyboardInterrupt, style="class:aborting")
+            if not event.app.is_done:
+                event.app.exit()
 
         return Application(key_bindings=kb, output=DummyOutput(), input=create_input())
 
@@ -361,23 +349,29 @@ class AsyncREPL:
         return kwargs
 
     async def _handle_cancellation(self, backend_task: asyncio.Task, backend: AsyncBackend) -> None:
-        """Handle cancellation of the backend task."""
+        """
+        Handle cancellation of the backend task.
+
+        Signals cancellation to the backend and waits for the task to complete
+        naturally. We don't force-cancel because that would prevent the backend's
+        cleanup hooks from running.
+        """
         print("\nOperation cancelled by user.")
 
-        # Signal cancellation to backend if it supports it
         if isinstance(backend, CancellableBackend):
             try:
                 backend.cancel("Operation cancelled by user")
             except Exception as e:
-                logger.error(f"Error signaling cancellation to backend: {e}")
+                logger.error(f"Error signaling cancellation: {e}")
 
-        # Cancel the asyncio task
+        # Wait for natural completion - don't force cancel
         if backend_task and not backend_task.done():
-            backend_task.cancel()
             try:
                 await backend_task
             except asyncio.CancelledError:
                 pass
+            except Exception:
+                logger.exception("Backend task raised exception during cancellation")
 
     async def _cleanup_cancel_context(
         self, cancel_app: Optional[Application], listener_task: Optional[asyncio.Task]
@@ -387,22 +381,23 @@ class AsyncREPL:
             if cancel_app and not cancel_app.is_done:
                 cancel_app.exit()
 
-            if listener_task and not listener_task.done():
-                listener_task.cancel()
+            if listener_task:
+                if not listener_task.done():
+                    listener_task.cancel()
                 try:
                     await listener_task
-                except asyncio.CancelledError:
+                except (asyncio.CancelledError, KeyboardInterrupt, Exception):
                     pass
-        except Exception as e:
-            logger.debug(f"Cleanup exception (non-fatal): {e}")
+        except Exception:
+            pass
 
     def _reset_ui(self) -> None:
         """Reset the UI after processing."""
         try:
             self.main_app.renderer.reset()
             self.main_app.invalidate()
-        except Exception as e:
-            logger.debug(f"UI reset exception (non-fatal): {e}")
+        except Exception:
+            pass
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -420,7 +415,7 @@ async def run_async_repl(
     **kwargs,
 ):
     """
-    Convenience function to create and run an AsyncREPL with action support.
+    Convenience function to create and run an AsyncREPL.
 
     Args:
         backend: Backend for processing input
