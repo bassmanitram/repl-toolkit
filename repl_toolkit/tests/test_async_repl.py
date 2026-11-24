@@ -626,7 +626,7 @@ class TestSendToBackendAsyncREPL:
     async def test_send_to_backend_custom_registry_other_results(
         self, mock_terminal_for_repl, monkeypatch, result
     ):
-        """Custom registries returning non-SendToBackend values send nothing and the loop continues."""
+        """Non-SendToBackend results from custom registries send nothing; the loop continues."""
         registry = RecordingRegistry(result)
         repl = self._make_repl(
             monkeypatch, ["/skill x", "typed"], registry=registry, enable_image_paste=False
