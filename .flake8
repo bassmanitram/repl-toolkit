@@ -1,6 +1,9 @@
+# This file is the only source of flake8 configuration.
+# .pre-commit-config.yaml must not pass flake8 options (command-line options
+# override the settings here), so local runs, pre-commit and CI all agree.
 [flake8]
 max-line-length = 100
-extend-ignore = E203, F401, F541, E501
+extend-ignore = E203
 exclude =
     .git,
     __pycache__,

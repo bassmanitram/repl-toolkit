@@ -1,10 +1,11 @@
 import asyncio
 import logging
 import sys
-from typing import Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
+from .actions.action import SendToBackend, filter_reserved_backend_kwargs
 from .actions.registry import ActionRegistry
 from .ptypes import ActionHandler, AsyncBackend, CancellableBackend
 
@@ -116,7 +117,13 @@ class HeadlessREPL:
                     await self._execute_send(backend, f"line {line_num}")
                 else:
                     # Synchronous command processing
-                    self._execute_command(line)
+                    result = self._execute_command(line)
+                    if isinstance(result, SendToBackend):
+                        if result.text:
+                            self._add_to_buffer(result.text)
+                        await self._execute_send(
+                            backend, f"line {line_num}", **result.backend_kwargs
+                        )
                     # Yield to event loop to ensure any pending async work completes
                     # before processing the next line. This prevents race conditions
                     # where commands modify backend state and the next line
@@ -145,15 +152,19 @@ class HeadlessREPL:
         logger.debug(f"Added line to buffer, total length: {len(self.buffer)}")
         logger.debug("HeadlessREPL._add_to_buffer() exit")
 
-    async def _execute_send(self, backend: AsyncBackend, context_info: str):
+    async def _execute_send(self, backend: AsyncBackend, context_info: str, **extra_kwargs: Any):
         """
         Execute /send command - send buffer to backend and wait.
 
         Args:
             backend: Backend to send buffer content to
             context_info: Context information for logging (e.g., "line 5", "EOF")
+            **extra_kwargs: Extra keyword arguments for backend.handle_input(),
+                e.g. from SendToBackend. Reserved keys are dropped with a warning.
         """
         logger.debug("HeadlessREPL._execute_send() entry")
+
+        extra = filter_reserved_backend_kwargs(extra_kwargs)
 
         buffer_content = self.buffer.strip()
 
@@ -169,7 +180,7 @@ class HeadlessREPL:
 
         try:
             # Send to backend and wait for completion
-            success = await backend.handle_input(buffer_content)
+            success = await backend.handle_input(buffer_content, **extra)
 
             if success:
                 logger.info(f"Send #{self.send_count} completed successfully")
@@ -188,23 +199,31 @@ class HeadlessREPL:
 
         logger.debug("HeadlessREPL._execute_send() exit")
 
-    def _execute_command(self, command: str):
+    def _execute_command(self, command: str) -> Optional[SendToBackend]:
         """
         Execute a command through the action system.
 
         Args:
             command: Command string to execute (e.g., "/help", "/shortcuts")
+
+        Returns:
+            The registry's handle_command result, or None if the command raised
         """
         logger.debug("HeadlessREPL._execute_command() entry")
 
         try:
-            self.action_registry.handle_command(command, headless_mode=True, buffer=self.buffer)
+            result = self.action_registry.handle_command(
+                command, headless_mode=True, buffer=self.buffer
+            )
+            logger.debug("HeadlessREPL._execute_command() exit")
+            return result
 
         except Exception as e:
             logger.error(f"Error executing command '{command}': {e}")
             # Don't fail entire process for command errors
 
         logger.debug("HeadlessREPL._execute_command() exit")
+        return None
 
     async def _handle_eof(self, backend: AsyncBackend):
         """

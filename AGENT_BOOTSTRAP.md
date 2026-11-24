@@ -2,7 +2,7 @@
 
 **Purpose**: Build interactive command-line applications with unified action system and async support
 **Type**: Library
-**Language**: Python 3.8+
+**Language**: Python 3.11+ (non-EOL CPython releases only)
 **Repository**: https://github.com/bassmanitram/repl-toolkit
 
 ---
@@ -188,6 +188,13 @@ User input → prompt-toolkit → AsyncREPL._process_input() → ActionRegistry.
                                                   Prints output          Returns bool (continue?)
 ```
 
+**Command-to-backend flow (v2.4.0)**:
+```
+/command → handle_command() → Action.handler() → SendToBackend ─┬→ AsyncREPL._process_input(text, **kwargs) → Backend.handle_input()
+                                  ↓ (None / other)               └→ HeadlessREPL._execute_send(**kwargs)     → Backend.handle_input()
+                            Prints output, next prompt
+```
+
 **Cancellation flow (v2.2.0)**:
 ```
 Ctrl+C/Alt+C → cancel_future.set_result() → isinstance(backend, CancellableBackend)?
@@ -312,6 +319,19 @@ Ctrl+C/Alt+C → cancel_future.set_result() → isinstance(backend, CancellableB
 
 ---
 
+## New in v2.4.0
+
+**`SendToBackend`**: A command's action handler may return `SendToBackend(text, backend_kwargs)` (defined in `actions/action.py`) to submit input to the backend. `ActionRegistry.execute_action()` / `handle_command()` pass it through (anything else becomes `None`); the REPL loops perform the backend turn, so handlers stay synchronous and the `AsyncBackend` / `CancellableBackend` protocols do not change. The `ActionHandler` protocol's `execute_action` / `handle_command` now return `Optional[SendToBackend]`.
+
+**Rules**:
+- Act on the result with `isinstance(result, SendToBackend)`, never truthiness
+- `AsyncREPL.run()` sends `result.text` unstripped via `_process_input(text, backend, **kwargs)`; empty/whitespace text sends nothing
+- `HeadlessREPL._stdin_loop()` appends the text to the buffer and calls `_execute_send(..., **kwargs)`
+- `cancel_callback` and `images` (`RESERVED_BACKEND_KWARGS`) are stripped from `backend_kwargs` with a warning by `filter_reserved_backend_kwargs()`; pasted images still arrive via `_build_backend_kwargs`
+- Shortcut handlers cannot send input; their `SendToBackend` is ignored
+
+---
+
 ## New in v2.3.0
 
 **Optional Future Cancellation Control**: `CancellableBackend.cancel()` now returns `Optional[bool]` to control whether REPL force-cancels the asyncio task or lets `handle_input()` complete gracefully.
@@ -360,5 +380,5 @@ Don't update for:
 
 ---
 
-**Last Updated**: 2026-03-18
-**Last Architectural Change**: v2.3.0 - Optional future cancellation control via cancel() return value
+**Last Updated**: 2026-11-23
+**Last Architectural Change**: v2.4.0 - Action handlers can submit input to the backend via `SendToBackend`

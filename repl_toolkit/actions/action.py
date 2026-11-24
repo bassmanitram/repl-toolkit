@@ -7,12 +7,59 @@ foundation of the command and keyboard shortcut system.
 
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Mapping, Optional, Union
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from .registry import ActionRegistry
+
+
+# Backend keyword arguments owned by the REPL; action handlers cannot set them
+RESERVED_BACKEND_KWARGS = frozenset({"cancel_callback", "images"})
+
+
+@dataclass(frozen=True)
+class SendToBackend:
+    """
+    Value returned by an action handler to submit input to the backend.
+
+    The REPL processes ``text`` as if the user had typed and sent it, passing
+    ``backend_kwargs`` on to ``backend.handle_input()``. Handlers that return
+    anything else (including ``None``) behave as before.
+
+    The keys ``cancel_callback`` and ``images`` are reserved for the REPL and
+    are dropped from ``backend_kwargs`` with a warning.
+
+    Instances are frozen but not hashable, because ``backend_kwargs`` is a dict.
+
+    Example:
+        def handle_ask(ctx):
+            return SendToBackend("Answer briefly: ...", backend_kwargs={"mode": "brief"})
+    """
+
+    text: str = ""
+    backend_kwargs: Mapping[str, Any] = field(default_factory=dict)
+
+
+def filter_reserved_backend_kwargs(backend_kwargs: Mapping[str, Any]) -> Dict[str, Any]:
+    """
+    Remove REPL-owned keys from action-supplied backend kwargs.
+
+    Args:
+        backend_kwargs: Keyword arguments requested by an action handler
+
+    Returns:
+        A new dict without any key in RESERVED_BACKEND_KWARGS. A warning naming
+        each dropped key is logged.
+    """
+    filtered: Dict[str, Any] = {}
+    for key, value in backend_kwargs.items():
+        if key in RESERVED_BACKEND_KWARGS:
+            logger.warning(f"Ignoring reserved backend kwarg '{key}' from SendToBackend")
+        else:
+            filtered[key] = value
+    return filtered
 
 
 @dataclass

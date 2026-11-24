@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-11-23
+
+### Added
+
+- **`SendToBackend`**: A command's action handler can return `SendToBackend(text, backend_kwargs)` to submit input to the backend as if the user had sent it
+  - `AsyncREPL` processes the text through the normal input path (THINKING message, cancellation, pasted-image buffer) and passes `backend_kwargs` to `handle_input`; empty or whitespace-only text sends nothing
+  - `HeadlessREPL` appends the text to the buffer and sends the buffer immediately, as `/send` does, passing `backend_kwargs` to `handle_input`
+  - Exported from `repl_toolkit` and `repl_toolkit.actions`
+  - Handlers returning `None` (or anything other than a `SendToBackend`) behave exactly as before
+- **Reserved backend kwargs**: `cancel_callback` and `images` (`RESERVED_BACKEND_KWARGS`) are owned by the REPL; if an action supplies them they are dropped with a warning
+- Python 3.13 and 3.14 are tested and declared supported. Policy: only non-EOL CPython releases are supported.
+
+### Changed
+
+- `ActionRegistry.execute_action()` and `ActionRegistry.handle_command()` now return `Optional[SendToBackend]` (previously `None`)
+- The `ActionHandler` protocol's `execute_action` and `handle_command` return annotations are widened to `Optional[SendToBackend]`; the `AsyncBackend` and `CancellableBackend` protocols are unchanged
+- `HeadlessREPL._execute_command()` returns the command result; `HeadlessREPL._execute_send()` and `AsyncREPL._process_input()` accept extra keyword arguments for the backend
+- flake8 configuration is now taken only from `.flake8` (the pre-commit hook no longer passes options), so local `flake8` runs match CI: E501, F401 and F541 are now enforced
+- CI tooling jobs run on Python 3.12; mypy checks against 3.11.
+
+### Removed
+
+- Support for Python 3.8, 3.9 and 3.10 (all end-of-life). The minimum supported version is now 3.11. pip on older interpreters will continue to resolve repl-toolkit 2.3.0.
+
+### Notes
+
+- Keyboard-shortcut handlers cannot send input: any `SendToBackend` they return is ignored (logged at debug level)
+
 ## [2.3.0] - 2026-03-18
 
 ### Added

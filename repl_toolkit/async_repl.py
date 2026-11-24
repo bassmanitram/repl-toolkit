@@ -26,7 +26,7 @@ from prompt_toolkit.output import DummyOutput
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.shortcuts import print_formatted_text
 
-from .actions import ActionContext, ActionRegistry
+from .actions import ActionContext, ActionRegistry, SendToBackend, filter_reserved_backend_kwargs
 from .images import ImageData, create_paste_action
 from .ptypes import AsyncBackend, CancellableBackend
 
@@ -171,7 +171,9 @@ class AsyncREPL:
                         event=event,
                         triggered_by="shortcut",
                     )
-                    self.action_registry.execute_action(action, context)
+                    result = self.action_registry.execute_action(action, context)
+                    if isinstance(result, SendToBackend):
+                        logger.debug(f"Ignoring SendToBackend returned by shortcut '{key_combo}'")
                 except Exception:
                     logger.exception(f"Error executing shortcut '{key_combo}'")
 
@@ -230,8 +232,14 @@ class AsyncREPL:
                 if not user_input.strip():
                     continue
                 if user_input.strip().startswith("/"):
-                    self.action_registry.handle_command(user_input.strip())
-                    await asyncio.sleep(0)
+                    result = self.action_registry.handle_command(user_input.strip())
+                    if isinstance(result, SendToBackend):
+                        if result.text.strip():
+                            await self._process_input(result.text, backend, **result.backend_kwargs)
+                        else:
+                            logger.debug("Ignoring SendToBackend with empty text")
+                    else:
+                        await asyncio.sleep(0)
                     continue
 
                 await self._process_input(user_input, backend)
@@ -250,15 +258,22 @@ class AsyncREPL:
     # Input Processing with Cancellation
     # ─────────────────────────────────────────────────────────────────────────
 
-    async def _process_input(self, user_input: str, backend: AsyncBackend):
+    async def _process_input(self, user_input: str, backend: AsyncBackend, **extra_kwargs: Any):
         """
         Process user input with cancellation support.
 
         Runs the backend task concurrently with a cancellation listener,
         allowing users to cancel via Ctrl+C or Alt+C.
+
+        Args:
+            user_input: Text to send to the backend
+            backend: Backend processing the input
+            **extra_kwargs: Extra keyword arguments for backend.handle_input(),
+                e.g. from SendToBackend. Reserved keys are dropped with a warning.
         """
+        extra = filter_reserved_backend_kwargs(extra_kwargs)
         async with self._cancellation_context() as ctx:
-            kwargs = self._build_backend_kwargs(ctx["trigger_cancel"])
+            kwargs = {**extra, **self._build_backend_kwargs(ctx["trigger_cancel"])}
             backend_task = asyncio.create_task(backend.handle_input(user_input, **kwargs))
 
             print(THINKING_MESSAGE)

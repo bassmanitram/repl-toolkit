@@ -6,7 +6,7 @@ Build interactive command-line applications with async Python. Create REPLs (Rea
 [![Lint](https://github.com/bassmanitram/repl-toolkit/actions/workflows/lint.yml/badge.svg)](https://github.com/bassmanitram/repl-toolkit/actions/workflows/lint.yml)
 [![Code Quality](https://github.com/bassmanitram/repl-toolkit/actions/workflows/quality.yml/badge.svg)](https://github.com/bassmanitram/repl-toolkit/actions/workflows/quality.yml)
 [![Examples](https://github.com/bassmanitram/repl-toolkit/actions/workflows/examples.yml/badge.svg)](https://github.com/bassmanitram/repl-toolkit/actions/workflows/examples.yml)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![PyPI version](https://img.shields.io/pypi/v/repl-toolkit.svg)](https://pypi.org/project/repl-toolkit/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -395,6 +395,34 @@ def my_handler(context: ActionContext):
     context.backend   # Your backend
 ```
 
+## Actions that send input
+
+A command handler can submit text to the backend by returning a `SendToBackend`. The REPL then treats the text as if the user had typed and sent it. Handlers that return `None` behave as before.
+
+```python
+from repl_toolkit import Action, SendToBackend
+
+def handle_ask(ctx):
+    question = " ".join(ctx.args)
+    if not question:
+        ctx.printer("Usage: /ask <question>")
+        return None
+    return SendToBackend(f"Answer briefly: {question}", backend_kwargs={"mode": "brief"})
+
+registry.register_action(Action(name="ask", command="/ask", handler=handle_ask,
+                                description="Ask a brief question", category="General"))
+```
+
+| REPL | Handler returns `SendToBackend(text, kwargs)` |
+|---|---|
+| AsyncREPL | `text` is processed as typed input (THINKING, cancellation); `kwargs` are passed to `handle_input`; empty `text` sends nothing |
+| HeadlessREPL | `text` is appended to the buffer, which is sent immediately as with `/send`; `kwargs` are passed to `handle_input` |
+
+Notes:
+
+- `cancel_callback` and `images` are reserved for the REPL. If they appear in `backend_kwargs` they are dropped with a warning. Pasted images still reach the backend through the normal image buffer.
+- Keyboard-shortcut handlers cannot send input: their return values are ignored.
+
 Add tab completion for commands, file paths, or custom values:
 
 ```python
@@ -503,6 +531,7 @@ from repl_toolkit import (
     ActionRegistry,                # Manage commands and shortcuts
     Action,                        # Define a command/shortcut
     ActionContext,                 # Context passed to handlers
+    SendToBackend,                 # Returned by a handler to send input to the backend
     PrefixCompleter,               # Tab completion
     ShellExpansionCompleter,       # Advanced tab completion
 )
@@ -860,7 +889,8 @@ print(HTML("<red>Error!</red>"))
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.11+
+- repl-toolkit supports CPython releases that have not reached end-of-life; support for a release is dropped in the first repl-toolkit release after its EOL date.
 - prompt-toolkit 3.0+
 - pyclip 0.7+ (optional, for image paste support)
 

@@ -3,12 +3,13 @@ Tests for headless mode functionality with action framework support.
 """
 
 import asyncio
+import logging
 from io import StringIO
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from repl_toolkit.actions import Action, ActionRegistry
+from repl_toolkit.actions import Action, ActionRegistry, SendToBackend
 from repl_toolkit.headless_repl import HeadlessREPL, run_headless_mode
 
 
@@ -675,3 +676,159 @@ Fifth line
         assert len(self.backend.inputs_received) == 10
         for i in range(10):
             assert self.backend.inputs_received[i] == f"Content {i}"
+
+
+class KwargsHeadlessBackend:
+    """Backend recording inputs and keyword arguments, with a shared event log."""
+
+    def __init__(self, events=None):
+        self.events = events if events is not None else []
+        self.calls = []
+
+    async def handle_input(self, user_input: str, **kwargs) -> bool:
+        self.calls.append((user_input, kwargs))
+        self.events.append(f"input:{user_input}")
+        return True
+
+    @property
+    def inputs_received(self):
+        """Inputs received, in order."""
+        return [user_input for user_input, _ in self.calls]
+
+
+class TestSendToBackendHeadless:
+    """Test action handlers that return SendToBackend in headless mode (send_to_backend)."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.events = []
+        self.backend = KwargsHeadlessBackend(self.events)
+        self.registry = ActionRegistry(printer=Mock())
+        self.contexts = []
+        self._register("arm", lambda ctx: SendToBackend(" ".join(ctx.args)))
+
+    def _register(self, name, handler):
+        """Register a command action named /<name>."""
+        self.registry.register_action(
+            Action(
+                name=name,
+                description=name,
+                category="Test",
+                handler=handler,
+                command=f"/{name}",
+            )
+        )
+
+    async def _run(self, stdin_input: str) -> bool:
+        """Run the headless REPL over the given stdin text."""
+        repl = HeadlessREPL(action_registry=self.registry)
+        with patch("sys.stdin", StringIO(stdin_input)):
+            return await repl.run(self.backend)
+
+    @pytest.mark.asyncio
+    async def test_send_to_backend_sends_before_later_lines(self):
+        """The command's text is sent immediately, before later lines are processed."""
+        self._register("after", lambda ctx: self.events.append("after"))
+
+        await self._run("/arm x\n/after\nlater\n")
+
+        assert self.events == ["input:x", "after", "input:later"]
+
+    @pytest.mark.asyncio
+    async def test_send_to_backend_appended_to_buffer(self):
+        """The text is appended to the existing buffer and the whole buffer is sent."""
+        await self._run("a\nb\n/arm x\n")
+
+        assert self.backend.inputs_received == ["a\nb\nx"]
+
+    @pytest.mark.asyncio
+    async def test_send_to_backend_empty_text_sends_buffer(self):
+        """Empty text sends the existing buffer."""
+        self._register("flush", lambda ctx: SendToBackend(""))
+
+        await self._run("a\n/flush\n")
+
+        assert self.events == ["input:a"]
+        assert self.backend.calls == [("a", {})]
+
+    @pytest.mark.asyncio
+    async def test_send_to_backend_empty_text_empty_buffer_skipped(self):
+        """Empty text with an empty buffer sends nothing."""
+        self._register("flush", lambda ctx: SendToBackend(""))
+
+        success = await self._run("/flush\n")
+
+        assert success is True
+        assert self.backend.calls == []
+
+    @pytest.mark.asyncio
+    async def test_send_to_backend_kwargs_forwarded(self):
+        """backend_kwargs are passed to handle_input."""
+        self._register("skill", lambda ctx: SendToBackend("go", backend_kwargs={"skill": "s"}))
+
+        await self._run("/skill\n")
+
+        assert self.backend.calls == [("go", {"skill": "s"})]
+
+    @pytest.mark.asyncio
+    async def test_send_to_backend_reserved_kwargs_dropped(self, caplog):
+        """Reserved keys are dropped with a warning naming each."""
+        self._register(
+            "skill",
+            lambda ctx: SendToBackend(
+                "go",
+                backend_kwargs={"cancel_callback": 1, "images": {}, "skill": "s"},
+            ),
+        )
+
+        with caplog.at_level(logging.WARNING):
+            await self._run("/skill\n")
+
+        assert self.backend.calls == [("go", {"skill": "s"})]
+        messages = [record.message for record in caplog.records]
+        assert any("cancel_callback" in message for message in messages)
+        assert any("images" in message for message in messages)
+
+    @pytest.mark.asyncio
+    async def test_send_to_backend_send_and_eof_have_no_extra_kwargs(self):
+        """/send and EOF still call handle_input(buffer) with no extra kwargs."""
+        await self._run("a\n/send\nb\n")
+
+        assert self.backend.calls == [("a", {}), ("b", {})]
+
+    @pytest.mark.asyncio
+    async def test_send_to_backend_buffer_cleared_after_send(self):
+        """Following lines start a new buffer after a SendToBackend send."""
+        await self._run("a\n/arm x\nb\nc\n")
+
+        assert self.backend.inputs_received == ["a\nx", "b\nc"]
+
+    @pytest.mark.asyncio
+    async def test_send_to_backend_none_result_sends_nothing(self):
+        """A handler returning None leaves the buffer untouched."""
+        self._register("noop", lambda ctx: None)
+
+        await self._run("a\n/noop\nb\n")
+
+        assert self.backend.inputs_received == ["a\nb"]
+
+    @pytest.mark.asyncio
+    async def test_send_to_backend_command_context(self):
+        """The command's context has headless_mode and the buffer at read time (R2)."""
+        self._register("probe", lambda ctx: self.contexts.append(ctx))
+
+        await self._run("a\nb\n/probe\n")
+
+        assert self.contexts[0].headless_mode is True
+        assert self.contexts[0].buffer == "a\nb"
+
+    def test_send_to_backend_execute_command_returns_result(self):
+        """_execute_command returns the handle_command result, None on exception."""
+        repl = HeadlessREPL(action_registry=self.registry)
+        sent = SendToBackend("x")
+
+        with patch.object(self.registry, "handle_command", return_value=sent):
+            assert repl._execute_command("/arm x") is sent
+
+        with patch.object(self.registry, "handle_command", side_effect=RuntimeError("boom")):
+            assert repl._execute_command("/arm x") is None
