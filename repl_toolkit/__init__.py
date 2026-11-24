@@ -37,9 +37,9 @@ import logging
 # Add NullHandler to prevent "No handler found" warnings
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
-__version__ = "2.3.0"
+__version__ = "2.4.0"
 
-from .actions import Action, ActionContext, ActionRegistry
+from .actions import Action, ActionContext, ActionRegistry, SendToBackend
 from .async_repl import AsyncREPL, run_async_repl
 from .completion import PrefixCompleter, ShellExpansionCompleter
 from .formatting import (
@@ -70,6 +70,7 @@ __all__ = [
     "Action",
     "ActionContext",
     "ActionRegistry",
+    "SendToBackend",
     # Completion
     "PrefixCompleter",
     "ShellExpansionCompleter",

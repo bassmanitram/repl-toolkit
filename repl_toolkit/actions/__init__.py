@@ -9,7 +9,16 @@ by either typed commands (e.g., /help) or keyboard shortcuts (e.g., F1),
 providing a consistent and discoverable interface for users.
 """
 
-from .action import Action, ActionContext, ActionError, ActionExecutionError, ActionValidationError
+from .action import (
+    RESERVED_BACKEND_KWARGS,
+    Action,
+    ActionContext,
+    ActionError,
+    ActionExecutionError,
+    ActionValidationError,
+    SendToBackend,
+    filter_reserved_backend_kwargs,
+)
 from .registry import ActionRegistry
 
 __all__ = [
@@ -19,6 +28,10 @@ __all__ = [
     "ActionError",
     "ActionValidationError",
     "ActionExecutionError",
+    # Backend submission
+    "SendToBackend",
+    "RESERVED_BACKEND_KWARGS",
+    "filter_reserved_backend_kwargs",
     # Registry
     "ActionRegistry",
 ]

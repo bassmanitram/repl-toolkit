@@ -12,7 +12,14 @@ from typing import Any, Callable, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 from ..ptypes import ActionHandler, AsyncBackend
-from .action import Action, ActionContext, ActionError, ActionExecutionError, ActionValidationError
+from .action import (
+    Action,
+    ActionContext,
+    ActionError,
+    ActionExecutionError,
+    ActionValidationError,
+    SendToBackend,
+)
 
 
 class ActionRegistry(ActionHandler):
@@ -274,13 +281,17 @@ class ActionRegistry(ActionHandler):
             f"Invalid handler type for action '{action.name}': {type(action.handler)}"
         )  # pragma: no cover
 
-    def execute_action(self, action_name: str, context: ActionContext) -> None:
+    def execute_action(self, action_name: str, context: ActionContext) -> Optional[SendToBackend]:
         """
         Execute an action by name.
 
         Args:
             action_name: Name of action to execute
             context: Action context
+
+        Returns:
+            The handler's return value if it is a SendToBackend, None otherwise
+            (including disabled and main-loop actions).
 
         Raises:
             ActionError: If action is not found or execution fails
@@ -294,7 +305,7 @@ class ActionRegistry(ActionHandler):
         if not action.enabled:
             logger.debug(f"Action '{action_name}' is disabled")
             logger.debug("ActionRegistry.execute_action() exit - disabled")
-            return
+            return None
 
         # Resolve handler
         handler = self._resolve_handler(action)
@@ -302,15 +313,16 @@ class ActionRegistry(ActionHandler):
             # Main loop actions (like exit/quit) return without execution
             logger.debug(f"Action '{action_name}' handled by main loop")
             logger.debug("ActionRegistry.execute_action() exit - main loop")
-            return
+            return None
 
         try:
             logger.debug(f"Executing action '{action_name}' via {context.triggered_by}")
 
             # Execute handler synchronously
             # If handler needs async operations, it can handle them internally
-            handler(context)
+            result = handler(context)
             logger.debug("ActionRegistry.execute_action() exit - success")
+            return result if isinstance(result, SendToBackend) else None
 
         except Exception as e:  # pragma: no cover
             logger.error(f"Error executing action '{action_name}': {e}")  # pragma: no cover
@@ -319,12 +331,16 @@ class ActionRegistry(ActionHandler):
                 f"Failed to execute action '{action_name}': {e}", action_name
             )  # pragma: no cover
 
-    def handle_command(self, command_string: str, **kwargs: Any) -> None:
+    def handle_command(self, command_string: str, **kwargs: Any) -> Optional[SendToBackend]:
         """
         Handle a command string by mapping to appropriate action.
 
         Args:
             command_string: Full command string (e.g., '/help topic')
+
+        Returns:
+            The SendToBackend returned by the action's handler, or None if there
+            was none, the command was unknown, or execution failed.
         """
         logger.debug("ActionRegistry.handle_command() entry")
         logger.debug(f"Handling command: {command_string}")
@@ -333,7 +349,7 @@ class ActionRegistry(ActionHandler):
         parts = command_string.strip().split()
         if not parts:
             logger.debug("ActionRegistry.handle_command() exit - no parts")
-            return
+            return None
 
         command = parts[0]
         args = parts[1:]
@@ -348,7 +364,7 @@ class ActionRegistry(ActionHandler):
             self.printer(f"Unknown command: {command}")
             self.printer("Use /help to see available commands.")
             logger.debug("ActionRegistry.handle_command() exit - unknown command")
-            return
+            return None
 
         # Create context and execute
         context = ActionContext(
@@ -363,18 +379,23 @@ class ActionRegistry(ActionHandler):
         vars(context).update(kwargs)
 
         try:
-            self.execute_action(action.name, context)
+            result = self.execute_action(action.name, context)
             logger.debug("ActionRegistry.handle_command() exit - success")
+            return result
         except ActionError as e:  # pragma: no cover
             logger.warning(f"Action error in command '{command_string}': {e}")
             logger.debug("ActionRegistry.handle_command() exit - action error")
         except Exception:  # pragma: no cover
             logger.exception(f"Unexpected error handling command '{command_string}'")
             logger.debug("ActionRegistry.handle_command() exit - unexpected error")
+        return None
 
     def handle_shortcut(self, key_combo: str, event: Any, **kwargs: Any) -> None:
         """
         Handle a keyboard shortcut by mapping to appropriate action.
+
+        Any SendToBackend returned by the handler is ignored: shortcuts cannot
+        submit input to the backend.
 
         Args:
             key_combo: Key combination string
@@ -402,7 +423,9 @@ class ActionRegistry(ActionHandler):
         vars(context).update(kwargs)
 
         try:
-            self.execute_action(action.name, context)
+            result = self.execute_action(action.name, context)
+            if isinstance(result, SendToBackend):
+                logger.debug(f"Ignoring SendToBackend returned by shortcut '{key_combo}'")
             logger.debug("ActionRegistry.handle_shortcut() exit - success")
         except ActionError as e:  # pragma: no cover
             logger.warning(f"Action error in shortcut '{key_combo}': {e}")

@@ -8,7 +8,7 @@ for compatibility with the REPL toolkit.
 from typing import TYPE_CHECKING, Dict, List, Optional, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
-    from .actions.action import ActionContext
+    from .actions.action import ActionContext, SendToBackend
     from .images import ImageData
 
 
@@ -110,7 +110,9 @@ class ActionHandler(Protocol):
     and keyboard shortcut-based actions in a coherent manner.
     """
 
-    def execute_action(self, action_name: str, context: "ActionContext") -> None:
+    def execute_action(
+        self, action_name: str, context: "ActionContext"
+    ) -> Optional["SendToBackend"]:
         """
         Execute an action by name.
 
@@ -118,18 +120,26 @@ class ActionHandler(Protocol):
             action_name: Name of the action to execute
             context: Action context containing relevant information
 
+        Returns:
+            A SendToBackend if the handler asked for input to be submitted to
+            the backend, None otherwise.
+
         Raises:
             ActionError: If action execution fails
         """
         ...
 
-    def handle_command(self, command_string: str, **kwargs) -> None:
+    def handle_command(self, command_string: str, **kwargs) -> Optional["SendToBackend"]:
         """
         Handle a command string by mapping to appropriate action.
 
         Args:
             command_string: Full command string (e.g., '/help arg1 arg2')
             **kwargs: Additional context parameters
+
+        Returns:
+            A SendToBackend if the command's handler asked for input to be
+            submitted to the backend, None otherwise.
         """
         ...
 

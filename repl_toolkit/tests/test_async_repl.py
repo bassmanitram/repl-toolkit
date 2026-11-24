@@ -3,6 +3,7 @@ Tests for AsyncREPL with action support and late backend binding.
 """
 
 import asyncio
+import logging
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -10,7 +11,7 @@ import pytest
 from prompt_toolkit.key_binding import KeyBindings
 
 from repl_toolkit import AsyncREPL, run_async_repl
-from repl_toolkit.actions import Action, ActionContext, ActionRegistry
+from repl_toolkit.actions import Action, ActionContext, ActionRegistry, SendToBackend
 
 
 class MockBackend:
@@ -379,3 +380,297 @@ class TestAsyncREPLEdgeCases:
 
         # Should have no bindings registered
         assert len(bindings.bindings) == 0
+
+
+class FakeCancelApp:
+    """Stand-in for the cancellation listener application (no terminal access)."""
+
+    is_done = False
+
+    async def run_async(self) -> None:
+        await asyncio.Event().wait()
+
+    def exit(self) -> None:
+        self.is_done = True
+
+
+class KwargsBackend:
+    """Backend recording the input and keyword arguments passed to handle_input."""
+
+    def __init__(self):
+        self.inputs_received = []
+        self.kwargs_received = []
+        self.image_ids_received = []
+
+    async def handle_input(self, user_input: str, **kwargs) -> bool:
+        self.inputs_received.append(user_input)
+        self.kwargs_received.append(kwargs)
+        # The REPL clears its image buffer after the turn, so snapshot it now
+        self.image_ids_received.append(dict(kwargs.get("images", {})))
+        return True
+
+
+class CancellingBackend:
+    """Backend that triggers cancellation via cancel_callback and then blocks."""
+
+    def __init__(self):
+        self.inputs_received = []
+        self.cancel_messages = []
+
+    async def handle_input(self, user_input: str, **kwargs) -> bool:
+        self.inputs_received.append(user_input)
+        kwargs["cancel_callback"]()
+        await asyncio.sleep(10)
+        return True
+
+    def cancel(self, message=None) -> None:
+        self.cancel_messages.append(message)
+
+
+class RecordingRegistry:
+    """Minimal ActionHandler whose handle_command returns a canned value."""
+
+    def __init__(self, result):
+        self.result = result
+        self.commands = []
+        self.backend = None
+        self.key_map = {}
+
+    def handle_command(self, command_string: str, **kwargs):
+        self.commands.append(command_string)
+        return self.result
+
+    def is_registered_command(self, text: str) -> bool:
+        return False
+
+
+class TestSendToBackendAsyncREPL:
+    """Test action handlers that return SendToBackend in the real run() loop (send_to_backend)."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.backend = KwargsBackend()
+        self.registry = ActionRegistry(printer=Mock())
+        self.contexts = []
+
+    def _register(self, handler, name="skill", command="/skill", keys=None):
+        """Register a command action with the given handler."""
+        self.registry.register_action(
+            Action(
+                name=name,
+                description="Skill",
+                category="Test",
+                handler=handler,
+                command=command,
+                keys=keys,
+            )
+        )
+
+    def _returning(self, result):
+        """Register /skill returning the given result and recording its context."""
+
+        def handler(context):
+            self.contexts.append(context)
+            return result
+
+        self._register(handler)
+
+    def _make_repl(self, monkeypatch, inputs, registry=None, **kwargs) -> AsyncREPL:
+        """Create a REPL whose session yields the given inputs and then EOF."""
+        repl = AsyncREPL(action_registry=registry or self.registry, **kwargs)
+        repl.session = Mock()
+        repl.session.prompt_async = AsyncMock(side_effect=list(inputs) + [EOFError()])
+        monkeypatch.setattr(repl, "_create_cancel_app", lambda cancel_future: FakeCancelApp())
+        return repl
+
+    @pytest.mark.asyncio
+    async def test_send_to_backend_reaches_backend(self, mock_terminal_for_repl, monkeypatch):
+        """The returned text is sent once and THINKING is printed."""
+        from repl_toolkit.async_repl import THINKING_MESSAGE
+
+        self._returning(SendToBackend("hello"))
+        repl = self._make_repl(monkeypatch, ["/skill x"])
+
+        with patch("repl_toolkit.async_repl.print") as mock_print:
+            await repl.run(self.backend)
+
+        assert self.backend.inputs_received == ["hello"]
+        mock_print.assert_any_call(THINKING_MESSAGE)
+
+    @pytest.mark.asyncio
+    async def test_send_to_backend_text_not_stripped(self, mock_terminal_for_repl, monkeypatch):
+        """The text is passed exactly as returned."""
+        self._returning(SendToBackend("  hello\n"))
+        repl = self._make_repl(monkeypatch, ["/skill x"])
+
+        await repl.run(self.backend)
+
+        assert self.backend.inputs_received == ["  hello\n"]
+
+    @pytest.mark.asyncio
+    async def test_send_to_backend_kwargs_forwarded(self, mock_terminal_for_repl, monkeypatch):
+        """backend_kwargs reach handle_input alongside the REPL's own cancel_callback."""
+        self._returning(SendToBackend("hello", backend_kwargs={"skill": "s"}))
+        repl = self._make_repl(monkeypatch, ["/skill x"])
+
+        await repl.run(self.backend)
+
+        assert self.backend.kwargs_received[0]["skill"] == "s"
+        assert callable(self.backend.kwargs_received[0]["cancel_callback"])
+
+    @pytest.mark.asyncio
+    async def test_send_to_backend_cancel_callback_dropped(
+        self, mock_terminal_for_repl, monkeypatch, caplog
+    ):
+        """A cancel_callback in backend_kwargs is dropped with a warning."""
+        sentinel = object()
+        self._returning(SendToBackend("hello", backend_kwargs={"cancel_callback": sentinel}))
+        repl = self._make_repl(monkeypatch, ["/skill x"])
+
+        with caplog.at_level(logging.WARNING):
+            await repl.run(self.backend)
+
+        received = self.backend.kwargs_received[0]["cancel_callback"]
+        assert received is not sentinel
+        assert callable(received)
+        assert any("cancel_callback" in record.message for record in caplog.records)
+
+    @pytest.mark.asyncio
+    async def test_send_to_backend_images_dropped_without_paste(
+        self, mock_terminal_for_repl, monkeypatch, caplog
+    ):
+        """With no pasted image, a reserved images key is dropped entirely."""
+        self._returning(SendToBackend("hello", backend_kwargs={"images": {"fake": 1}}))
+        repl = self._make_repl(monkeypatch, ["/skill x"])
+
+        with caplog.at_level(logging.WARNING):
+            await repl.run(self.backend)
+
+        assert self.backend.inputs_received == ["hello"]
+        assert "images" not in self.backend.kwargs_received[0]
+        assert any("images" in record.message for record in caplog.records)
+
+    @pytest.mark.asyncio
+    async def test_send_to_backend_images_dropped_with_paste(
+        self, mock_terminal_for_repl, monkeypatch, caplog
+    ):
+        """With a pasted image, the backend gets the REPL buffer, not the action's value."""
+        self._returning(SendToBackend("hello", backend_kwargs={"images": {"fake": 1}}))
+        repl = self._make_repl(monkeypatch, ["/skill x"])
+        image_id = repl.add_image(b"data", "image/png")
+
+        with caplog.at_level(logging.WARNING):
+            await repl.run(self.backend)
+
+        assert list(self.backend.image_ids_received[0]) == [image_id]
+        assert any("images" in record.message for record in caplog.records)
+
+    @pytest.mark.asyncio
+    async def test_send_to_backend_pasted_image_reaches_backend(
+        self, mock_terminal_for_repl, monkeypatch
+    ):
+        """A pasted image reaches handle_input on a SendToBackend turn (R1)."""
+        self._returning(SendToBackend("look {{image:img_001}}"))
+        repl = self._make_repl(monkeypatch, ["/skill x"])
+        image_id = repl.add_image(b"data", "image/png")
+        assert image_id == "img_001"
+
+        await repl.run(self.backend)
+
+        assert self.backend.inputs_received == ["look {{image:img_001}}"]
+        assert "img_001" in self.backend.image_ids_received[0]
+        assert repl.get_images() == {}
+
+    @pytest.mark.asyncio
+    async def test_send_to_backend_cancellation(self, mock_terminal_for_repl, monkeypatch):
+        """Cancellation behaves as for typed input."""
+        backend = CancellingBackend()
+        self._returning(SendToBackend("hello"))
+        repl = self._make_repl(monkeypatch, ["/skill x"])
+
+        with patch("repl_toolkit.async_repl.print") as mock_print:
+            await repl.run(backend)
+
+        assert backend.inputs_received == ["hello"]
+        assert backend.cancel_messages == ["Operation cancelled by user"]
+        mock_print.assert_any_call("\nOperation cancelled by user.")
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("text", ["", "   ", "\n"])
+    async def test_send_to_backend_empty_text_sends_nothing(
+        self, mock_terminal_for_repl, monkeypatch, text
+    ):
+        """Empty or whitespace-only text does not reach the backend."""
+        self._returning(SendToBackend(text, backend_kwargs={"skill": "s"}))
+        repl = self._make_repl(monkeypatch, ["/skill x", "typed"])
+
+        await repl.run(self.backend)
+
+        assert self.backend.inputs_received == ["typed"]
+
+    @pytest.mark.asyncio
+    async def test_send_to_backend_none_result_sends_nothing(
+        self, mock_terminal_for_repl, monkeypatch
+    ):
+        """A handler returning None does not reach the backend."""
+        self._returning(None)
+        repl = self._make_repl(monkeypatch, ["/skill x"])
+
+        await repl.run(self.backend)
+
+        assert self.backend.inputs_received == []
+        assert len(self.contexts) == 1
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("result", [None, "text", True, {"text": "x"}])
+    async def test_send_to_backend_custom_registry_other_results(
+        self, mock_terminal_for_repl, monkeypatch, result
+    ):
+        """Custom registries returning non-SendToBackend values send nothing and the loop continues."""
+        registry = RecordingRegistry(result)
+        repl = self._make_repl(
+            monkeypatch, ["/skill x", "typed"], registry=registry, enable_image_paste=False
+        )
+
+        await repl.run(self.backend)
+
+        assert registry.commands == ["/skill x"]
+        assert self.backend.inputs_received == ["typed"]
+
+    @pytest.mark.asyncio
+    async def test_send_to_backend_multiline_command_input_preserved(
+        self, mock_terminal_for_repl, monkeypatch
+    ):
+        """The handler sees the submitted input with its newline preserved (R2)."""
+        self._returning(None)
+        repl = self._make_repl(monkeypatch, ["/skill x a\nb"])
+
+        await repl.run(self.backend)
+
+        assert self.contexts[0].user_input == "/skill x a\nb"
+
+    @pytest.mark.asyncio
+    async def test_send_to_backend_typed_input_has_no_extra_kwargs(
+        self, mock_terminal_for_repl, monkeypatch
+    ):
+        """Typed input still receives only the REPL's own kwargs."""
+        repl = self._make_repl(monkeypatch, ["typed"])
+
+        await repl.run(self.backend)
+
+        assert set(self.backend.kwargs_received[0]) == {"cancel_callback"}
+
+    def test_send_to_backend_shortcut_result_ignored(self, mock_terminal_for_repl, caplog):
+        """A shortcut handler returning SendToBackend does not reach the backend."""
+        handler = Mock(return_value=SendToBackend("hello"))
+        self._register(handler, name="quick", command="/quick", keys="f5")
+        self.registry.backend = self.backend
+        repl = AsyncREPL(action_registry=self.registry)
+        binding = next(b for b in repl._create_key_bindings().bindings if b.keys == ("f5",))
+
+        with caplog.at_level(logging.DEBUG, logger="repl_toolkit.async_repl"):
+            binding.handler(Mock())
+
+        handler.assert_called_once()
+        assert self.backend.inputs_received == []
+        assert any("Ignoring SendToBackend" in record.message for record in caplog.records)

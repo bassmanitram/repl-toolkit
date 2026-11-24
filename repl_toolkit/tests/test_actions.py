@@ -2,17 +2,23 @@
 Tests for the action system.
 """
 
+import dataclasses
+import logging
 from unittest.mock import Mock
 
 import pytest
 
 from repl_toolkit.actions import (
+    RESERVED_BACKEND_KWARGS,
     Action,
     ActionContext,
     ActionError,
     ActionRegistry,
     ActionValidationError,
+    SendToBackend,
+    filter_reserved_backend_kwargs,
 )
+from repl_toolkit.actions.action import ActionExecutionError
 
 
 class TestAction:
@@ -659,3 +665,164 @@ class TestIsRegisteredCommand:
         assert registry.is_registered_command("/model gpt-4")
         assert registry.is_registered_command("/model   multiple   args  ")
         assert registry.is_registered_command("/help /model")  # /help with arg
+
+
+class TestSendToBackendType:
+    """Test the SendToBackend value type (send_to_backend)."""
+
+    def test_send_to_backend_defaults(self):
+        """Defaults are empty text and empty kwargs."""
+        result = SendToBackend()
+
+        assert result.text == ""
+        assert result.backend_kwargs == {}
+
+    def test_send_to_backend_frozen(self):
+        """Assigning to a field raises FrozenInstanceError."""
+        result = SendToBackend("x")
+
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            result.text = "y"  # type: ignore[misc]
+
+    def test_send_to_backend_not_hashable(self):
+        """Instances are unhashable because backend_kwargs is a dict."""
+        with pytest.raises(TypeError):
+            hash(SendToBackend("x"))
+
+    def test_send_to_backend_importable(self):
+        """SendToBackend is exported from the package and the actions module."""
+        import repl_toolkit
+        import repl_toolkit.actions
+
+        assert repl_toolkit.SendToBackend is SendToBackend
+        assert repl_toolkit.actions.SendToBackend is SendToBackend
+        assert "SendToBackend" in repl_toolkit.__all__
+        assert "SendToBackend" in repl_toolkit.actions.__all__
+
+    def test_reserved_backend_kwargs(self):
+        """The reserved keys are cancel_callback and images."""
+        assert RESERVED_BACKEND_KWARGS == frozenset({"cancel_callback", "images"})
+
+
+class TestSendToBackendRegistry:
+    """Test registry return values for SendToBackend (send_to_backend)."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.printer = Mock()
+        self.registry = ActionRegistry(printer=self.printer)
+
+    def _register(self, handler, name="probe", command="/probe", keys=None, enabled=True):
+        """Register an action with the given handler."""
+        self.registry.register_action(
+            Action(
+                name=name,
+                description="Probe",
+                category="Test",
+                handler=handler,
+                command=command,
+                keys=keys,
+                enabled=enabled,
+            )
+        )
+
+    def test_handler_returning_none(self):
+        """A handler returning None yields None from handle_command."""
+        self._register(lambda ctx: None)
+
+        assert self.registry.handle_command("/probe") is None
+
+    def test_handler_returning_send_to_backend(self):
+        """The same SendToBackend object is returned by both entry points."""
+        sent = SendToBackend("x")
+        self._register(lambda ctx: sent)
+
+        assert self.registry.handle_command("/probe") is sent
+        context = ActionContext(registry=self.registry)
+        assert self.registry.execute_action("probe", context) is sent
+
+    @pytest.mark.parametrize("value", ["x", True, 1, {"text": "x"}])
+    def test_handler_returning_other_value(self, value):
+        """Non-SendToBackend return values are discarded."""
+        self._register(lambda ctx: value)
+
+        assert self.registry.handle_command("/probe") is None
+        context = ActionContext(registry=self.registry)
+        assert self.registry.execute_action("probe", context) is None
+
+    def test_unknown_command_returns_none(self):
+        """Unknown commands still print their messages and return None."""
+        assert self.registry.handle_command("/nope") is None
+
+        printed = [str(call) for call in self.printer.call_args_list]
+        assert any("Unknown command" in message for message in printed)
+
+    def test_empty_command_returns_none(self):
+        """A blank command string returns None."""
+        assert self.registry.handle_command("   ") is None
+
+    def test_disabled_action_returns_none(self):
+        """A disabled action does not run and returns None."""
+        handler = Mock(return_value=SendToBackend("x"))
+        self._register(handler, enabled=False)
+
+        assert self.registry.handle_command("/probe") is None
+        handler.assert_not_called()
+
+    def test_main_loop_action_returns_none(self):
+        """Main-loop actions (handler None) return None."""
+        context = ActionContext(registry=self.registry)
+
+        assert self.registry.execute_action("exit_repl", context) is None
+
+    def test_raising_handler_returns_none_from_handle_command(self):
+        """A raising handler is caught by handle_command, which returns None."""
+
+        def boom(ctx):
+            raise RuntimeError("boom")
+
+        self._register(boom)
+
+        assert self.registry.handle_command("/probe") is None
+
+    def test_raising_handler_still_raises_from_execute_action(self):
+        """execute_action keeps raising ActionExecutionError."""
+
+        def boom(ctx):
+            raise RuntimeError("boom")
+
+        self._register(boom)
+        context = ActionContext(registry=self.registry)
+
+        with pytest.raises(ActionExecutionError):
+            self.registry.execute_action("probe", context)
+
+    def test_shortcut_returning_send_to_backend_is_ignored(self, caplog):
+        """handle_shortcut returns None and logs that the value was ignored."""
+        self._register(lambda ctx: SendToBackend("x"), keys="f5")
+
+        with caplog.at_level(logging.DEBUG, logger="repl_toolkit.actions.registry"):
+            result = self.registry.handle_shortcut("f5", Mock())
+
+        assert result is None
+        assert any("Ignoring SendToBackend" in record.message for record in caplog.records)
+
+
+class TestSendToBackendKwargsFilter:
+    """Test the shared reserved-key filter (send_to_backend)."""
+
+    def test_filter_keeps_other_keys(self):
+        """Non-reserved keys pass through unchanged."""
+        assert filter_reserved_backend_kwargs({"skill": "s"}) == {"skill": "s"}
+
+    def test_filter_drops_reserved_keys_with_warning(self, caplog):
+        """Every reserved key is dropped and named in a warning."""
+        with caplog.at_level(logging.WARNING):
+            result = filter_reserved_backend_kwargs(
+                {"cancel_callback": 1, "images": 2, "skill": "s"}
+            )
+
+        assert result == {"skill": "s"}
+        messages = [record.message for record in caplog.records]
+        assert any("cancel_callback" in message for message in messages)
+        assert any("images" in message for message in messages)
