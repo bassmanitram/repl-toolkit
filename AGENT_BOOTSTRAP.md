@@ -2,7 +2,7 @@
 
 **Purpose**: Build interactive command-line applications with unified action system and async support
 **Type**: Library
-**Language**: Python 3.8+
+**Language**: Python 3.11+ (non-EOL CPython releases only)
 **Repository**: https://github.com/bassmanitram/repl-toolkit
 
 ---

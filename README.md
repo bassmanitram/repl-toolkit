@@ -6,7 +6,7 @@ Build interactive command-line applications with async Python. Create REPLs (Rea
 [![Lint](https://github.com/bassmanitram/repl-toolkit/actions/workflows/lint.yml/badge.svg)](https://github.com/bassmanitram/repl-toolkit/actions/workflows/lint.yml)
 [![Code Quality](https://github.com/bassmanitram/repl-toolkit/actions/workflows/quality.yml/badge.svg)](https://github.com/bassmanitram/repl-toolkit/actions/workflows/quality.yml)
 [![Examples](https://github.com/bassmanitram/repl-toolkit/actions/workflows/examples.yml/badge.svg)](https://github.com/bassmanitram/repl-toolkit/actions/workflows/examples.yml)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![PyPI version](https://img.shields.io/pypi/v/repl-toolkit.svg)](https://pypi.org/project/repl-toolkit/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -889,7 +889,8 @@ print(HTML("<red>Error!</red>"))
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.11+
+- repl-toolkit supports CPython releases that have not reached end-of-life; support for a release is dropped in the first repl-toolkit release after its EOL date.
 - prompt-toolkit 3.0+
 - pyclip 0.7+ (optional, for image paste support)
 

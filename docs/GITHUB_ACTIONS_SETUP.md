@@ -6,9 +6,9 @@ This document describes the GitHub Actions workflows that have been configured f
 
 ### 1. **test.yml** - Main Test Workflow
 **Trigger**: Push to main/develop, Pull requests
-**Matrix**: 3 OS × 5 Python versions (15 jobs total)
+**Matrix**: 3 OS × 4 Python versions (12 jobs total)
 - Ubuntu, Windows, macOS
-- Python 3.8, 3.9, 3.10, 3.11, 3.12
+- Python 3.11, 3.12, 3.13, 3.14
 
 **Steps**:
 1. Checkout code
@@ -16,7 +16,7 @@ This document describes the GitHub Actions workflows that have been configured f
 3. Install dependencies (`pip install -e ".[dev,test]"`)
 4. Lint with black
 5. Sort imports with isort
-6. Type check with mypy (Python 3.9+)
+6. Type check with mypy (Python 3.11+)
 7. Run pytest with coverage
 
 **Local Test**: `pytest repl_toolkit/tests/ --cov=repl_toolkit`
@@ -25,7 +25,7 @@ This document describes the GitHub Actions workflows that have been configured f
 
 ### 2. **lint.yml** - Code Linting
 **Trigger**: Push to main/develop, Pull requests
-**Single job**: Ubuntu, Python 3.10
+**Single job**: Ubuntu, Python 3.12
 
 **Steps**:
 1. Black formatting check
@@ -39,7 +39,7 @@ This document describes the GitHub Actions workflows that have been configured f
 
 ### 3. **quality.yml** - Code Quality
 **Trigger**: Push to main/develop, Pull requests
-**Single job**: Ubuntu, Python 3.10
+**Single job**: Ubuntu, Python 3.12
 
 **Steps**:
 1. Run pre-commit hooks
@@ -55,7 +55,7 @@ This document describes the GitHub Actions workflows that have been configured f
 
 ### 4. **examples.yml** - Example Validation
 **Trigger**: Push to main/develop, Pull requests
-**Matrix**: Python 3.8, 3.10, 3.12
+**Matrix**: Python 3.11, 3.12, 3.14
 
 **Steps**:
 1. Install package
@@ -68,7 +68,7 @@ This document describes the GitHub Actions workflows that have been configured f
 
 ### 5. **docs.yml** - Documentation Validation
 **Trigger**: Push to main (paths: README.md, CHANGELOG.md, docs/**, examples/**)
-**Single job**: Ubuntu, Python 3.10
+**Single job**: Ubuntu, Python 3.12
 
 **Steps**:
 1. Validate required files exist
@@ -99,7 +99,7 @@ This document describes the GitHub Actions workflows that have been configured f
 
 ### 7. **status.yml** - Daily Health Check
 **Trigger**: Daily at 8 AM UTC, Manual dispatch
-**Single job**: Ubuntu, Python 3.10
+**Single job**: Ubuntu, Python 3.12
 
 **Steps**:
 1. Run comprehensive tests
@@ -115,7 +115,7 @@ This document describes the GitHub Actions workflows that have been configured f
 
 ### 8. **dependencies.yml** - Weekly Dependency Check
 **Trigger**: Weekly on Monday at 9 AM UTC, Manual dispatch
-**Single job**: Ubuntu, Python 3.10
+**Single job**: Ubuntu, Python 3.12
 
 **Steps**:
 1. Install dependencies
@@ -144,7 +144,8 @@ Pre-commit hooks for:
 ### `.flake8`
 Flake8 configuration:
 - Max line length: 100
-- Ignore: E203, W503
+- Ignore: E203 only, on top of flake8 defaults
+- Only source of flake8 configuration; pre-commit passes no options
 - Exclude: build, dist, .venv, etc.
 
 ### `pyproject.toml` (updated)
@@ -206,7 +207,7 @@ pip list --outdated
 
 | Workflow | Trigger | OS | Python | Jobs |
 |----------|---------|----|----|------|
-| test.yml | Push/PR | 3 | 5 | 15 |
+| test.yml | Push/PR | 3 | 4 | 12 |
 | lint.yml | Push/PR | 1 | 1 | 1 |
 | quality.yml | Push/PR | 1 | 1 | 1 |
 | examples.yml | Push/PR | 1 | 3 | 3 |
@@ -215,7 +216,7 @@ pip list --outdated
 | status.yml | Daily/Manual | 1 | 1 | 1 |
 | dependencies.yml | Weekly/Manual | 1 | 1 | 1 |
 
-**Total**: 8 workflows, up to 23 jobs per full run
+**Total**: 8 workflows, up to 21 jobs per full run
 
 ---
 
